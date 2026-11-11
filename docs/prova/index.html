@@ -67,6 +67,7 @@
     <label><input type="radio" name="pausa" value="finta"> D · Finta: l'audio resta acceso in muto</label>
     <label><input type="radio" name="pausa" value="silenzio"> E · Silenzio: durante la pausa suona un audio muto (max 15 min)</label>
     <label><input type="radio" name="pausa" value="velocita0"> F · Velocità zero</label>
+    <label><input type="radio" name="pausa" value="volume0"> G · Volume a zero (il libro non si ferma mai, max 15 min)</label>
   </fieldset>
 
   <fieldset>
@@ -142,6 +143,29 @@ const silenzio = document.getElementById('silenzio');
   w(36, 'data'); v.setUint32(40, n * 2, true);
   silenzio.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
 })();
+// Variante G: faccio passare il libro da un "mixer" (Web Audio) per poter abbassare il volume a zero
+let ctxAudio = null, guadagno = null;
+function preparaWebAudio() {
+  if (ctxAudio) { ctxAudio.resume(); return; }
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    ctxAudio = new AC();
+    const sorgente = ctxAudio.createMediaElementSource(audio);
+    guadagno = ctxAudio.createGain();
+    sorgente.connect(guadagno); guadagno.connect(ctxAudio.destination);
+    ctxAudio.onstatechange = () => log('mixer: ' + ctxAudio.state);
+    ctxAudio.resume();
+    log('mixer pronto (' + ctxAudio.state + ')');
+  } catch (e) { log('mixer non disponibile: ' + e.message); ctxAudio = null; guadagno = null; }
+}
+// Durante la pausa a volume zero il libro continua: ogni tanto lo riporto al punto della pausa
+audio.addEventListener('timeupdate', () => {
+  if (pausaFinta && tipoFinta === 'volume0') {
+    const dove = Math.max(0, Math.min(posFinta, (audio.duration || 0) - 25));
+    if (audio.currentTime > dove + 20) audio.currentTime = dove;
+  }
+});
+
 // iPhone fa partire un audio solo dopo un tocco: lo "sblocco" quando scegli la variante E
 function sbloccaSilenzio() {
   silenzio.play().then(() => { silenzio.pause(); log('silenzio pronto'); }).catch(e => log('silenzio non sbloccato: ' + e.message));
@@ -169,6 +193,18 @@ function pausa() {
         if (pausaFinta && tipoFinta === 'silenzio') { silenzio.pause(); pausaFinta = false; log('silenzio fermato dopo 15 minuti'); }
       }, 15 * 60 * 1000);
     }).catch(e => { log('silenzio rifiutato: ' + e.message); pausaFinta = false; audio.pause(); });
+  } else if (modoPausa === 'volume0' && guadagno) {
+    posFinta = audio.currentTime; pausaFinta = true; tipoFinta = 'volume0';
+    guadagno.gain.value = 0;
+    statoSessione('paused'); btnPlay.textContent = '▶ Play';
+    log('pausa a volume zero a ' + mmss(posFinta));
+    clearTimeout(timerSilenzio);
+    timerSilenzio = setTimeout(() => {
+      if (pausaFinta && tipoFinta === 'volume0') {
+        audio.pause(); audio.currentTime = posFinta; guadagno.gain.value = 1;
+        pausaFinta = false; tipoFinta = ''; log('dopo 15 minuti: pausa vera');
+      }
+    }, 15 * 60 * 1000);
   } else if (modoPausa === 'velocita0') {
     try {
       posFinta = audio.currentTime; audio.playbackRate = 0; pausaFinta = true; tipoFinta = 'velocita0';
@@ -186,6 +222,7 @@ function riprendi() {
     if (t === 'finta') audio.muted = false;
     if (t === 'velocita0') audio.playbackRate = 1;
     if (t === 'silenzio') { clearTimeout(timerSilenzio); silenzio.pause(); }
+    if (t === 'volume0') { clearTimeout(timerSilenzio); guadagno.gain.value = 1; if (ctxAudio.state !== 'running') ctxAudio.resume(); }
     audio.currentTime = posFinta;
     statoSessione('playing'); btnPlay.textContent = '⏸ Pausa';
     log('ripresa dalla pausa (' + t + ')');
@@ -199,8 +236,8 @@ function riprendi() {
 function controllaSuono() {
   const t0 = audio.currentTime;
   setTimeout(() => {
-    const ok = !audio.paused && !audio.muted && !pausaFinta && audio.currentTime > t0 + 0.5;
-    log('controllo suono: ' + (ok ? 'AVANZA' : 'FERMO') + ' (punto ' + audio.currentTime.toFixed(1) + ' s, pronto ' + audio.readyState + ')');
+    log('controllo: da ' + t0.toFixed(1) + ' a ' + audio.currentTime.toFixed(1) + ' s in 2,5 s · fermo=' + audio.paused +
+        ' · muto=' + audio.muted + (ctxAudio ? ' · mixer=' + ctxAudio.state : ''));
   }, 2500);
 }
 document.querySelectorAll('input[name=pausa]').forEach(r => {
@@ -210,11 +247,16 @@ document.querySelectorAll('input[name=pausa]').forEach(r => {
     modoPausa = r.value; try { localStorage.setItem('modoPausa', modoPausa); } catch (e) {}
     log('tipo di pausa: ' + modoPausa);
     if (modoPausa === 'silenzio') sbloccaSilenzio();
+    if (modoPausa === 'volume0') preparaWebAudio();
     controllaStato();
   };
 });
 
-btnPlay.onclick = () => { (audio.paused || pausaFinta) ? riprendi() : pausa(); };
+btnPlay.onclick = () => {
+  // Il mixer della variante G si può accendere solo con un tocco: lo faccio al primo Play
+  if (modoPausa === 'volume0' && !ctxAudio) preparaWebAudio();
+  (audio.paused || pausaFinta) ? riprendi() : pausa();
+};
 document.getElementById('indietro').onclick = () => salta(-10);
 document.getElementById('avanti').onclick = () => salta(10);
 
@@ -327,7 +369,7 @@ async function controllaStato() {
     v.push('Dati protetti dalla pulizia automatica: ' + (persist ? 'sì' : 'no'));
   }
   v.push('Rete: ' + (navigator.onLine ? 'online' : 'OFFLINE'));
-  v.push('Versione pagina: 5 · modalità audio: ' + (modoSorgente === 'memoria' ? 'B (memoria)' : 'A (a pezzi)') + ' · pausa: ' + modoPausa);
+  v.push('Versione pagina: 6 · modalità audio: ' + (modoSorgente === 'memoria' ? 'B (memoria)' : 'A (a pezzi)') + ' · pausa: ' + modoPausa);
   elStato.innerHTML = v.map(t => '<div>' + t + '</div>').join('');
 }
 
