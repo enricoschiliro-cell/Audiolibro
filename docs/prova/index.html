@@ -50,6 +50,7 @@
     <label><input type="radio" name="modo" value="salti" checked> Solo ±10 secondi</label>
     <label><input type="radio" name="modo" value="tracce"> Solo avanti/indietro traccia</label>
     <label><input type="radio" name="modo" value="entrambi"> Tutti e due</label>
+    <label><input type="radio" name="modo" value="ios"> C · Nessun comando dall'app: decide iOS</label>
   </fieldset>
 
   <!-- Due modi di leggere l'audio: dal service worker a pezzi (versione 1) o tutto in memoria (versione 2) -->
@@ -178,10 +179,16 @@ function impostaTasti(modo) {
     artwork: [{ src: 'icona-512.png', sizes: '512x512', type: 'image/png' }]
   });
   const h = (azione, fn) => { try { ms.setActionHandler(azione, fn); } catch (e) { log('azione non supportata: ' + azione); } };
+  // Tolgo tutto e rimetto solo la variante scelta
+  ['play', 'pause', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack', 'seekto'].forEach(a => h(a, null));
+  try { localStorage.setItem('modoTasti', modo); } catch (e) {}
+  if (modo === 'ios') {
+    // Variante C: nessun gestore. iOS comanda direttamente il lettore audio, senza il nostro codice.
+    log('variante tasti: C (decide iOS)');
+    return;
+  }
   h('play', () => { log('tasto: play'); audio.play().catch(e => log('play rifiutato: ' + e.name + ' ' + e.message)); });
   h('pause', () => { log('tasto: pausa'); audio.pause(); });
-  // Tolgo tutto e rimetto solo la variante scelta
-  ['seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(a => h(a, null));
   if (modo === 'salti' || modo === 'entrambi') {
     h('seekbackward', () => { log('tasto: indietro 10 s'); salta(-10); });
     h('seekforward', () => { log('tasto: avanti 10 s'); salta(10); });
@@ -193,8 +200,10 @@ function impostaTasti(modo) {
   h('seekto', (d) => { log('tasto: barra a ' + mmss(d.seekTime)); audio.currentTime = d.seekTime; });
   log('variante tasti: ' + modo);
 }
-document.querySelectorAll('input[name=modo]').forEach(r => r.onchange = () => impostaTasti(r.value));
-impostaTasti('salti');
+let modoTasti = 'salti';
+try { modoTasti = localStorage.getItem('modoTasti') || 'salti'; } catch (e) {}
+document.querySelectorAll('input[name=modo]').forEach(r => { r.checked = r.value === modoTasti; r.onchange = () => impostaTasti(r.value); });
+impostaTasti(modoTasti);
 
 // ---------- Stato: app installata? offline pronto? spazio? ----------
 async function controllaStato() {
@@ -213,7 +222,7 @@ async function controllaStato() {
     v.push('Dati protetti dalla pulizia automatica: ' + (persist ? 'sì' : 'no'));
   }
   v.push('Rete: ' + (navigator.onLine ? 'online' : 'OFFLINE'));
-  v.push('Versione pagina: 2 · modalità audio: ' + (modoSorgente === 'memoria' ? 'B (memoria)' : 'A (a pezzi)'));
+  v.push('Versione pagina: 3 · modalità audio: ' + (modoSorgente === 'memoria' ? 'B (memoria)' : 'A (a pezzi)'));
   elStato.innerHTML = v.map(t => '<div>' + t + '</div>').join('');
 }
 
