@@ -6,3 +6,6 @@ __pycache__/
 *.pyc
 # Pacchetti dei libri da importare nell'app
 *.zip
+
+# Modelli di voce scaricati (pesanti)
+modelli/
