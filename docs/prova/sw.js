@@ -1,5 +1,5 @@
 // Service worker della pagina di prova: salva i file sul telefono e li serve anche senza internet.
-const CACHE = 'prova-v1';
+const CACHE = 'prova-v2';
 const FILE = ['./', 'index.html', 'manifest.webmanifest', 'icona-180.png', 'icona-512.png', 'prova.wav'];
 
 // Installazione: scarico e salvo tutti i file
@@ -40,9 +40,24 @@ async function rispostaAPezzi(request, response) {
   });
 }
 
-// Ogni richiesta: prima cerco nella cache, se non c'è vado in rete
+// Ogni richiesta: prima cerco nella cache, se non c'è vado in rete.
+// Eccezione: la pagina stessa la chiedo prima alla rete, così le versioni nuove arrivano subito
+// (senza rete uso quella salvata).
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  if (e.request.mode === 'navigate') {
+    e.respondWith((async () => {
+      try {
+        const nuova = await fetch(e.request);
+        const c = await caches.open(CACHE);
+        c.put('index.html', nuova.clone());
+        return nuova;
+      } catch (err) {
+        return (await caches.match('index.html')) || Response.error();
+      }
+    })());
+    return;
+  }
   e.respondWith((async () => {
     const inCache = await caches.match(e.request.url, { ignoreSearch: true });
     if (inCache) return rispostaAPezzi(e.request, inCache);

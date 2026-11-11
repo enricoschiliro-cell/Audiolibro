@@ -52,6 +52,13 @@
     <label><input type="radio" name="modo" value="entrambi"> Tutti e due</label>
   </fieldset>
 
+  <!-- Due modi di leggere l'audio: dal service worker a pezzi (versione 1) o tutto in memoria (versione 2) -->
+  <fieldset>
+    <legend>Modalità audio</legend>
+    <label><input type="radio" name="sorgente" value="memoria"> B · Tutto in memoria (nuova, da provare)</label>
+    <label><input type="radio" name="sorgente" value="sw"> A · A pezzi dal service worker (come prima)</label>
+  </fieldset>
+
   <fieldset>
     <legend>Stato</legend>
     <div id="stato">Controllo in corso…</div>
@@ -74,7 +81,7 @@
     </ol>
   </fieldset>
 
-  <audio id="audio" src="prova.wav" preload="auto"></audio>
+  <audio id="audio" preload="auto"></audio>
 
 <script>
 // ---------- Elementi della pagina ----------
@@ -110,6 +117,41 @@ document.getElementById('avanti').onclick = () => salta(10);
 audio.addEventListener('play', () => { btnPlay.textContent = '⏸ Pausa'; log('play'); aggiornaPosizione(); });
 audio.addEventListener('pause', () => { btnPlay.textContent = '▶ Play'; log('pausa'); salvaPunto(); });
 audio.addEventListener('ended', () => log('fine audio'));
+// Eventi utili per capire dove si blocca il lettore
+audio.addEventListener('waiting', () => log('lettore: in attesa di dati'));
+audio.addEventListener('stalled', () => log('lettore: dati bloccati'));
+audio.addEventListener('error', () => log('lettore: ERRORE ' + (audio.error ? audio.error.code + ' ' + (audio.error.message || '') : '')));
+document.addEventListener('visibilitychange', () => log(document.hidden ? 'app in background' : 'app di nuovo visibile'));
+
+// ---------- Modalità audio ----------
+let urlMemoria = null;
+let modoSorgente = 'memoria';
+try { modoSorgente = localStorage.getItem('sorgente') || 'memoria'; } catch (e) {}
+async function caricaAudio(modo) {
+  const pos = audio.currentTime || 0;
+  const eraInPlay = !audio.paused;
+  if (eraInPlay) audio.pause();
+  if (modo === 'memoria') {
+    // Prendo il file intero dalla cache del telefono (o dalla rete) e lo tengo in memoria
+    const r = (await caches.match(new URL('prova.wav', location.href).href)) || (await fetch('prova.wav'));
+    const blob = await r.blob();
+    if (urlMemoria) URL.revokeObjectURL(urlMemoria);
+    urlMemoria = URL.createObjectURL(blob);
+    audio.src = urlMemoria;
+    log('audio caricato in memoria: ' + (blob.size / 1e6).toFixed(1) + ' MB');
+  } else {
+    audio.src = 'prova.wav';
+    log('audio letto a pezzi dal service worker');
+  }
+  if (pos > 0) audio.addEventListener('loadedmetadata', () => { audio.currentTime = pos; }, { once: true });
+  modoSorgente = modo;
+  try { localStorage.setItem('sorgente', modo); } catch (e) {}
+  controllaStato();
+}
+document.querySelectorAll('input[name=sorgente]').forEach(r => {
+  r.checked = r.value === modoSorgente;
+  r.onchange = () => caricaAudio(r.value).catch(e => log('Errore caricamento: ' + e.message));
+});
 audio.addEventListener('timeupdate', () => { elTempo.textContent = mmss(audio.currentTime) + ' / ' + mmss(audio.duration); });
 
 // ---------- Punto di ascolto: salvato ogni 5 secondi e ripreso alla riapertura ----------
@@ -136,7 +178,7 @@ function impostaTasti(modo) {
     artwork: [{ src: 'icona-512.png', sizes: '512x512', type: 'image/png' }]
   });
   const h = (azione, fn) => { try { ms.setActionHandler(azione, fn); } catch (e) { log('azione non supportata: ' + azione); } };
-  h('play', () => { log('tasto: play'); audio.play(); });
+  h('play', () => { log('tasto: play'); audio.play().catch(e => log('play rifiutato: ' + e.name + ' ' + e.message)); });
   h('pause', () => { log('tasto: pausa'); audio.pause(); });
   // Tolgo tutto e rimetto solo la variante scelta
   ['seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(a => h(a, null));
@@ -171,17 +213,22 @@ async function controllaStato() {
     v.push('Dati protetti dalla pulizia automatica: ' + (persist ? 'sì' : 'no'));
   }
   v.push('Rete: ' + (navigator.onLine ? 'online' : 'OFFLINE'));
+  v.push('Versione pagina: 2 · modalità audio: ' + (modoSorgente === 'memoria' ? 'B (memoria)' : 'A (a pezzi)'));
   elStato.innerHTML = v.map(t => '<div>' + t + '</div>').join('');
 }
 
 // ---------- Registro del service worker (fa funzionare la pagina offline) ----------
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').then(() => controllaStato()).catch(e => log('Errore offline: ' + e.message));
+  // Quando arriva una versione nuova della pagina, ricarico una volta sola
+  let ricaricata = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!ricaricata && navigator.serviceWorker.controller) { ricaricata = true; location.reload(); } });
   navigator.serviceWorker.addEventListener('controllerchange', controllaStato);
 }
 addEventListener('online', controllaStato);
 addEventListener('offline', controllaStato);
 controllaStato();
+caricaAudio(modoSorgente).catch(e => log('Errore caricamento: ' + e.message));
 </script>
 </body>
 </html>
