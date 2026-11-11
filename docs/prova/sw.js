@@ -1,5 +1,5 @@
 // Service worker della pagina di prova: salva i file sul telefono e li serve anche senza internet.
-const CACHE = 'prova-v3';
+const CACHE = 'prova-v4';
 const FILE = ['./', 'index.html', 'manifest.webmanifest', 'icona-180.png', 'icona-512.png', 'prova.wav'];
 
 // Installazione: scarico e salvo tutti i file

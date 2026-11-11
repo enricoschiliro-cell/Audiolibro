@@ -60,6 +60,13 @@
     <label><input type="radio" name="sorgente" value="sw"> A · A pezzi dal service worker (come prima)</label>
   </fieldset>
 
+  <!-- Pausa finta: il lettore resta acceso in muto, così iOS non lo "spegne" -->
+  <fieldset>
+    <legend>Tipo di pausa</legend>
+    <label><input type="radio" name="pausa" value="normale"> Normale (come prima)</label>
+    <label><input type="radio" name="pausa" value="finta"> D · Finta: l'audio resta acceso in muto</label>
+  </fieldset>
+
   <fieldset>
     <legend>Stato</legend>
     <div id="stato">Controllo in corso…</div>
@@ -110,12 +117,57 @@ document.getElementById('pulisci').onclick = () => { righe = []; scriviRegistro(
 
 // ---------- Comandi ----------
 function mmss(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
-function salta(sec) { audio.currentTime = Math.min(Math.max(0, audio.currentTime + sec), audio.duration || 0); }
-btnPlay.onclick = () => { audio.paused ? audio.play().catch(e => log('Errore play: ' + e.message)) : audio.pause(); };
+function limita(t) { return Math.min(Math.max(0, t), audio.duration || 0); }
+
+// ---------- Pausa normale o finta ----------
+let modoPausa = 'normale';
+try { modoPausa = localStorage.getItem('modoPausa') || 'normale'; } catch (e) {}
+let pausaFinta = false;   // true = il lettore suona in muto, per l'utente è "in pausa"
+let posFinta = 0;         // punto in cui l'utente ha messo in pausa
+function statoSessione(s) { try { navigator.mediaSession.playbackState = s; } catch (e) {} }
+function salta(sec) {
+  if (pausaFinta) { posFinta = limita(posFinta + sec); elTempo.textContent = mmss(posFinta) + ' / ' + mmss(audio.duration); return; }
+  audio.currentTime = limita(audio.currentTime + sec);
+}
+function pausa() {
+  if (modoPausa === 'finta' && !audio.paused && !pausaFinta) {
+    posFinta = audio.currentTime; pausaFinta = true; audio.muted = true;
+    statoSessione('paused'); btnPlay.textContent = '▶ Play';
+    log('pausa finta (muto) a ' + mmss(posFinta));
+  } else if (!pausaFinta) {
+    audio.pause();
+  }
+}
+function riprendi() {
+  if (pausaFinta) {
+    audio.currentTime = posFinta; audio.muted = false; pausaFinta = false;
+    statoSessione('playing'); btnPlay.textContent = '⏸ Pausa';
+    log('ripresa dalla pausa finta');
+    if (audio.paused) audio.play().catch(e => log('play rifiutato: ' + e.name + ' ' + e.message));
+    controllaSuono();
+    return;
+  }
+  audio.play().catch(e => log('play rifiutato: ' + e.name + ' ' + e.message));
+}
+// Dopo 2,5 secondi controllo se l'audio avanza davvero
+function controllaSuono() {
+  const t0 = audio.currentTime;
+  setTimeout(() => {
+    const ok = !audio.paused && !audio.muted && audio.currentTime > t0 + 0.5;
+    log('controllo suono: ' + (ok ? 'AVANZA' : 'FERMO') + ' (punto ' + audio.currentTime.toFixed(1) + ' s, pronto ' + audio.readyState + ')');
+  }, 2500);
+}
+document.querySelectorAll('input[name=pausa]').forEach(r => {
+  r.checked = r.value === modoPausa;
+  r.onchange = () => { if (pausaFinta) riprendi(); modoPausa = r.value; try { localStorage.setItem('modoPausa', modoPausa); } catch (e) {} log('tipo di pausa: ' + modoPausa); };
+});
+
+btnPlay.onclick = () => { (audio.paused || pausaFinta) ? riprendi() : pausa(); };
 document.getElementById('indietro').onclick = () => salta(-10);
 document.getElementById('avanti').onclick = () => salta(10);
 
-audio.addEventListener('play', () => { btnPlay.textContent = '⏸ Pausa'; log('play'); aggiornaPosizione(); });
+audio.addEventListener('play', () => { btnPlay.textContent = '⏸ Pausa'; log('play'); aggiornaPosizione(); controllaSuono(); });
+audio.addEventListener('playing', () => log('lettore: suona davvero'));
 audio.addEventListener('pause', () => { btnPlay.textContent = '▶ Play'; log('pausa'); salvaPunto(); });
 audio.addEventListener('ended', () => log('fine audio'));
 // Eventi utili per capire dove si blocca il lettore
@@ -153,7 +205,7 @@ document.querySelectorAll('input[name=sorgente]').forEach(r => {
   r.checked = r.value === modoSorgente;
   r.onchange = () => caricaAudio(r.value).catch(e => log('Errore caricamento: ' + e.message));
 });
-audio.addEventListener('timeupdate', () => { elTempo.textContent = mmss(audio.currentTime) + ' / ' + mmss(audio.duration); });
+audio.addEventListener('timeupdate', () => { elTempo.textContent = mmss(pausaFinta ? posFinta : audio.currentTime) + ' / ' + mmss(audio.duration); });
 
 // ---------- Punto di ascolto: salvato ogni 5 secondi e ripreso alla riapertura ----------
 function salvaPunto() { try { localStorage.setItem('punto', String(audio.currentTime)); } catch (e) {} }
@@ -187,8 +239,8 @@ function impostaTasti(modo) {
     log('variante tasti: C (decide iOS)');
     return;
   }
-  h('play', () => { log('tasto: play'); audio.play().catch(e => log('play rifiutato: ' + e.name + ' ' + e.message)); });
-  h('pause', () => { log('tasto: pausa'); audio.pause(); });
+  h('play', () => { log('tasto: play (fermo=' + audio.paused + ', pronto=' + audio.readyState + ')'); riprendi(); });
+  h('pause', () => { log('tasto: pausa'); pausa(); });
   if (modo === 'salti' || modo === 'entrambi') {
     h('seekbackward', () => { log('tasto: indietro 10 s'); salta(-10); });
     h('seekforward', () => { log('tasto: avanti 10 s'); salta(10); });
@@ -197,7 +249,7 @@ function impostaTasti(modo) {
     h('previoustrack', () => { log('tasto: traccia precedente'); salta(-30); });
     h('nexttrack', () => { log('tasto: traccia successiva'); salta(30); });
   }
-  h('seekto', (d) => { log('tasto: barra a ' + mmss(d.seekTime)); audio.currentTime = d.seekTime; });
+  h('seekto', (d) => { log('tasto: barra a ' + mmss(d.seekTime)); if (pausaFinta) posFinta = d.seekTime; else audio.currentTime = d.seekTime; });
   log('variante tasti: ' + modo);
 }
 let modoTasti = 'salti';
@@ -222,7 +274,7 @@ async function controllaStato() {
     v.push('Dati protetti dalla pulizia automatica: ' + (persist ? 'sì' : 'no'));
   }
   v.push('Rete: ' + (navigator.onLine ? 'online' : 'OFFLINE'));
-  v.push('Versione pagina: 3 · modalità audio: ' + (modoSorgente === 'memoria' ? 'B (memoria)' : 'A (a pezzi)'));
+  v.push('Versione pagina: 4 · modalità audio: ' + (modoSorgente === 'memoria' ? 'B (memoria)' : 'A (a pezzi)') + ' · pausa: ' + modoPausa);
   elStato.innerHTML = v.map(t => '<div>' + t + '</div>').join('');
 }
 
