@@ -65,6 +65,8 @@
     <legend>Tipo di pausa</legend>
     <label><input type="radio" name="pausa" value="normale"> Normale (come prima)</label>
     <label><input type="radio" name="pausa" value="finta"> D · Finta: l'audio resta acceso in muto</label>
+    <label><input type="radio" name="pausa" value="silenzio"> E · Silenzio: durante la pausa suona un audio muto (max 15 min)</label>
+    <label><input type="radio" name="pausa" value="velocita0"> F · Velocità zero</label>
   </fieldset>
 
   <fieldset>
@@ -90,6 +92,7 @@
   </fieldset>
 
   <audio id="audio" preload="auto"></audio>
+  <audio id="silenzio" loop preload="auto"></audio>
 
 <script>
 // ---------- Elementi della pagina ----------
@@ -122,29 +125,72 @@ function limita(t) { return Math.min(Math.max(0, t), audio.duration || 0); }
 // ---------- Pausa normale o finta ----------
 let modoPausa = 'normale';
 try { modoPausa = localStorage.getItem('modoPausa') || 'normale'; } catch (e) {}
-let pausaFinta = false;   // true = il lettore suona in muto, per l'utente è "in pausa"
+let pausaFinta = false;   // true = per l'utente è "in pausa", ma qualcosa tiene vivo l'audio
+let tipoFinta = '';       // quale trucco è attivo: finta, silenzio, velocita0
 let posFinta = 0;         // punto in cui l'utente ha messo in pausa
+let timerSilenzio = null;
 function statoSessione(s) { try { navigator.mediaSession.playbackState = s; } catch (e) {} }
+
+// Audio di silenzio vero (2 secondi di zeri), creato qui senza scaricare nulla
+const silenzio = document.getElementById('silenzio');
+(function creaSilenzio() {
+  const sr = 8000, n = sr * 2, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, n * 2, true);
+  silenzio.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+})();
+// iPhone fa partire un audio solo dopo un tocco: lo "sblocco" quando scegli la variante E
+function sbloccaSilenzio() {
+  silenzio.play().then(() => { silenzio.pause(); log('silenzio pronto'); }).catch(e => log('silenzio non sbloccato: ' + e.message));
+}
 function salta(sec) {
   if (pausaFinta) { posFinta = limita(posFinta + sec); elTempo.textContent = mmss(posFinta) + ' / ' + mmss(audio.duration); return; }
   audio.currentTime = limita(audio.currentTime + sec);
 }
 function pausa() {
-  if (modoPausa === 'finta' && !audio.paused && !pausaFinta) {
-    posFinta = audio.currentTime; pausaFinta = true; audio.muted = true;
+  if (pausaFinta) return;
+  if (audio.paused) return;
+  if (modoPausa === 'finta') {
+    posFinta = audio.currentTime; pausaFinta = true; tipoFinta = 'finta'; audio.muted = true;
     statoSessione('paused'); btnPlay.textContent = '▶ Play';
     log('pausa finta (muto) a ' + mmss(posFinta));
-  } else if (!pausaFinta) {
+  } else if (modoPausa === 'silenzio') {
+    // Faccio partire il silenzio e solo dopo fermo il libro: l'audio della pagina non si spegne mai
+    posFinta = audio.currentTime; pausaFinta = true; tipoFinta = 'silenzio';
+    silenzio.currentTime = 0;
+    silenzio.play().then(() => {
+      audio.pause(); statoSessione('paused');
+      log('pausa con silenzio a ' + mmss(posFinta));
+      clearTimeout(timerSilenzio);
+      timerSilenzio = setTimeout(() => {
+        if (pausaFinta && tipoFinta === 'silenzio') { silenzio.pause(); pausaFinta = false; log('silenzio fermato dopo 15 minuti'); }
+      }, 15 * 60 * 1000);
+    }).catch(e => { log('silenzio rifiutato: ' + e.message); pausaFinta = false; audio.pause(); });
+  } else if (modoPausa === 'velocita0') {
+    try {
+      posFinta = audio.currentTime; audio.playbackRate = 0; pausaFinta = true; tipoFinta = 'velocita0';
+      statoSessione('paused'); btnPlay.textContent = '▶ Play';
+      log('pausa a velocità zero a ' + mmss(posFinta));
+    } catch (e) { log('velocità zero non accettata: ' + e.message); audio.pause(); }
+  } else {
     audio.pause();
   }
 }
 function riprendi() {
   if (pausaFinta) {
-    audio.currentTime = posFinta; audio.muted = false; pausaFinta = false;
+    const t = tipoFinta;
+    pausaFinta = false; tipoFinta = '';
+    if (t === 'finta') audio.muted = false;
+    if (t === 'velocita0') audio.playbackRate = 1;
+    if (t === 'silenzio') { clearTimeout(timerSilenzio); silenzio.pause(); }
+    audio.currentTime = posFinta;
     statoSessione('playing'); btnPlay.textContent = '⏸ Pausa';
-    log('ripresa dalla pausa finta');
+    log('ripresa dalla pausa (' + t + ')');
     if (audio.paused) audio.play().catch(e => log('play rifiutato: ' + e.name + ' ' + e.message));
-    controllaSuono();
+    else controllaSuono();
     return;
   }
   audio.play().catch(e => log('play rifiutato: ' + e.name + ' ' + e.message));
@@ -153,13 +199,19 @@ function riprendi() {
 function controllaSuono() {
   const t0 = audio.currentTime;
   setTimeout(() => {
-    const ok = !audio.paused && !audio.muted && audio.currentTime > t0 + 0.5;
+    const ok = !audio.paused && !audio.muted && !pausaFinta && audio.currentTime > t0 + 0.5;
     log('controllo suono: ' + (ok ? 'AVANZA' : 'FERMO') + ' (punto ' + audio.currentTime.toFixed(1) + ' s, pronto ' + audio.readyState + ')');
   }, 2500);
 }
 document.querySelectorAll('input[name=pausa]').forEach(r => {
   r.checked = r.value === modoPausa;
-  r.onchange = () => { if (pausaFinta) riprendi(); modoPausa = r.value; try { localStorage.setItem('modoPausa', modoPausa); } catch (e) {} log('tipo di pausa: ' + modoPausa); };
+  r.onchange = () => {
+    if (pausaFinta) riprendi();
+    modoPausa = r.value; try { localStorage.setItem('modoPausa', modoPausa); } catch (e) {}
+    log('tipo di pausa: ' + modoPausa);
+    if (modoPausa === 'silenzio') sbloccaSilenzio();
+    controllaStato();
+  };
 });
 
 btnPlay.onclick = () => { (audio.paused || pausaFinta) ? riprendi() : pausa(); };
@@ -240,7 +292,8 @@ function impostaTasti(modo) {
     return;
   }
   h('play', () => { log('tasto: play (fermo=' + audio.paused + ', pronto=' + audio.readyState + ')'); riprendi(); });
-  h('pause', () => { log('tasto: pausa'); pausa(); });
+  // Durante il trucco del silenzio iOS crede che stia suonando: qualunque tasto play/pausa vuol dire "riprendi"
+  h('pause', () => { log('tasto: pausa'); if (pausaFinta) riprendi(); else pausa(); });
   if (modo === 'salti' || modo === 'entrambi') {
     h('seekbackward', () => { log('tasto: indietro 10 s'); salta(-10); });
     h('seekforward', () => { log('tasto: avanti 10 s'); salta(10); });
@@ -274,7 +327,7 @@ async function controllaStato() {
     v.push('Dati protetti dalla pulizia automatica: ' + (persist ? 'sì' : 'no'));
   }
   v.push('Rete: ' + (navigator.onLine ? 'online' : 'OFFLINE'));
-  v.push('Versione pagina: 4 · modalità audio: ' + (modoSorgente === 'memoria' ? 'B (memoria)' : 'A (a pezzi)') + ' · pausa: ' + modoPausa);
+  v.push('Versione pagina: 5 · modalità audio: ' + (modoSorgente === 'memoria' ? 'B (memoria)' : 'A (a pezzi)') + ' · pausa: ' + modoPausa);
   elStato.innerHTML = v.map(t => '<div>' + t + '</div>').join('');
 }
 
