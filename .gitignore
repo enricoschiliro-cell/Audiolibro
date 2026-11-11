@@ -1,0 +1,8 @@
+# Audio e testi generati: restano solo sul PC, non vanno mai online
+output/
+# Ambiente Python e librerie
+.venv/
+__pycache__/
+*.pyc
+# Pacchetti dei libri da importare nell'app
+*.zip

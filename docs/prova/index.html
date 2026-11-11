@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Prova Audiolibro</title>
+  <!-- Dati per "Aggiungi alla schermata Home" -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icona-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Prova">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#1a1410">
+  <style>
+    :root { --fondo:#1a1410; --testo:#f3e6d8; --arancio:#ff8c28; --tenue:#a08c78; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--fondo); color:var(--testo);
+           font: 16px/1.45 ui-monospace, Menlo, Consolas, monospace;
+           padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+    h1 { color:var(--arancio); font-size:20px; margin:0 0 4px; text-shadow:0 0 8px rgba(255,140,40,.6); }
+    .piccolo { color:var(--tenue); font-size:13px; }
+    .riga { display:flex; gap:10px; margin:14px 0; }
+    button { flex:1; min-height:56px; font:inherit; font-size:18px; color:var(--fondo);
+             background:var(--arancio); border:0; border-radius:10px; }
+    button.sec { background:transparent; color:var(--arancio); border:2px solid var(--arancio); }
+    #tempo { font-size:28px; text-align:center; margin:10px 0; }
+    fieldset { border:1px solid var(--tenue); border-radius:10px; margin:14px 0; }
+    label { display:block; padding:6px 0; }
+    #stato div { padding:2px 0; overflow-wrap:anywhere; }
+    #registro { max-height:220px; overflow-y:auto; border:1px solid var(--tenue);
+                border-radius:10px; padding:8px; font-size:13px; }
+    ol { padding-left:20px; } li { margin:4px 0; }
+  </style>
+</head>
+<body>
+  <h1>&gt;_ Prova audiolibro</h1>
+  <div class="piccolo">Pagina di test: audio in background, cuffie, offline. Non è l'app finale.</div>
+
+  <div id="tempo">0:00 / 0:00</div>
+  <div class="riga">
+    <button class="sec" id="indietro">−10 s</button>
+    <button id="play">▶ Play</button>
+    <button class="sec" id="avanti">+10 s</button>
+  </div>
+
+  <!-- Su iPhone la schermata di blocco mostra o i salti di 10 s o i tasti traccia: qui provi le tre varianti -->
+  <fieldset>
+    <legend>Tasti nella schermata di blocco</legend>
+    <label><input type="radio" name="modo" value="salti" checked> Solo ±10 secondi</label>
+    <label><input type="radio" name="modo" value="tracce"> Solo avanti/indietro traccia</label>
+    <label><input type="radio" name="modo" value="entrambi"> Tutti e due</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Stato</legend>
+    <div id="stato">Controllo in corso…</div>
+  </fieldset>
+
+  <div class="riga" style="margin-bottom:6px">
+    <strong style="flex:1">Registro eventi</strong>
+    <button class="sec" id="pulisci" style="flex:0 0 auto; min-height:36px; font-size:14px; padding:0 12px">Pulisci</button>
+  </div>
+  <div id="registro"></div>
+
+  <fieldset>
+    <legend>Cosa provare</legend>
+    <ol>
+      <li>Premi Play, poi blocca il telefono: la voce deve continuare.</li>
+      <li>Dalla schermata di blocco e dalle cuffie: pausa, play, avanti, indietro.</li>
+      <li>Torna qui e guarda il registro: ogni tasto deve comparire.</li>
+      <li>Cambia la variante dei tasti qui sopra e riprova.</li>
+      <li>Attiva la modalità aereo, chiudi l'app e riaprila: deve funzionare lo stesso.</li>
+    </ol>
+  </fieldset>
+
+  <audio id="audio" src="prova.wav" preload="auto"></audio>
+
+<script>
+// ---------- Elementi della pagina ----------
+const audio = document.getElementById('audio');
+const btnPlay = document.getElementById('play');
+const elTempo = document.getElementById('tempo');
+const elStato = document.getElementById('stato');
+const elRegistro = document.getElementById('registro');
+
+// ---------- Registro eventi (salvato sul telefono, così lo ritrovi dopo aver bloccato lo schermo) ----------
+let righe = [];
+try { righe = JSON.parse(localStorage.getItem('registro') || '[]'); } catch (e) {}
+function scriviRegistro() {
+  elRegistro.innerHTML = righe.slice().reverse().map(r => '<div>' + r + '</div>').join('');
+}
+function log(testo) {
+  const ora = new Date().toLocaleTimeString('it-IT');
+  righe.push(ora + '  ' + testo);
+  if (righe.length > 200) righe = righe.slice(-200);
+  try { localStorage.setItem('registro', JSON.stringify(righe)); } catch (e) {}
+  scriviRegistro();
+}
+scriviRegistro();
+document.getElementById('pulisci').onclick = () => { righe = []; scriviRegistro(); try { localStorage.removeItem('registro'); } catch (e) {} };
+
+// ---------- Comandi ----------
+function mmss(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function salta(sec) { audio.currentTime = Math.min(Math.max(0, audio.currentTime + sec), audio.duration || 0); }
+btnPlay.onclick = () => { audio.paused ? audio.play().catch(e => log('Errore play: ' + e.message)) : audio.pause(); };
+document.getElementById('indietro').onclick = () => salta(-10);
+document.getElementById('avanti').onclick = () => salta(10);
+
+audio.addEventListener('play', () => { btnPlay.textContent = '⏸ Pausa'; log('play'); aggiornaPosizione(); });
+audio.addEventListener('pause', () => { btnPlay.textContent = '▶ Play'; log('pausa'); salvaPunto(); });
+audio.addEventListener('ended', () => log('fine audio'));
+audio.addEventListener('timeupdate', () => { elTempo.textContent = mmss(audio.currentTime) + ' / ' + mmss(audio.duration); });
+
+// ---------- Punto di ascolto: salvato ogni 5 secondi e ripreso alla riapertura ----------
+function salvaPunto() { try { localStorage.setItem('punto', String(audio.currentTime)); } catch (e) {} }
+setInterval(() => { if (!audio.paused) salvaPunto(); }, 5000);
+audio.addEventListener('loadedmetadata', () => {
+  const p = parseFloat(localStorage.getItem('punto') || '0');
+  if (p > 0 && p < audio.duration) { audio.currentTime = p; log('ripreso da ' + mmss(p)); }
+  elTempo.textContent = mmss(audio.currentTime) + ' / ' + mmss(audio.duration);
+});
+
+// ---------- Media Session: titolo e tasti nella schermata di blocco e nelle cuffie ----------
+function aggiornaPosizione() {
+  if (!('mediaSession' in navigator) || !audio.duration) return;
+  try { navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: 1, position: audio.currentTime }); } catch (e) {}
+}
+audio.addEventListener('seeked', aggiornaPosizione);
+
+function impostaTasti(modo) {
+  if (!('mediaSession' in navigator)) { log('Media Session NON supportata'); return; }
+  const ms = navigator.mediaSession;
+  ms.metadata = new MediaMetadata({
+    title: 'Prova audiolibro', artist: 'Caramella', album: 'Test',
+    artwork: [{ src: 'icona-512.png', sizes: '512x512', type: 'image/png' }]
+  });
+  const h = (azione, fn) => { try { ms.setActionHandler(azione, fn); } catch (e) { log('azione non supportata: ' + azione); } };
+  h('play', () => { log('tasto: play'); audio.play(); });
+  h('pause', () => { log('tasto: pausa'); audio.pause(); });
+  // Tolgo tutto e rimetto solo la variante scelta
+  ['seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(a => h(a, null));
+  if (modo === 'salti' || modo === 'entrambi') {
+    h('seekbackward', () => { log('tasto: indietro 10 s'); salta(-10); });
+    h('seekforward', () => { log('tasto: avanti 10 s'); salta(10); });
+  }
+  if (modo === 'tracce' || modo === 'entrambi') {
+    h('previoustrack', () => { log('tasto: traccia precedente'); salta(-30); });
+    h('nexttrack', () => { log('tasto: traccia successiva'); salta(30); });
+  }
+  h('seekto', (d) => { log('tasto: barra a ' + mmss(d.seekTime)); audio.currentTime = d.seekTime; });
+  log('variante tasti: ' + modo);
+}
+document.querySelectorAll('input[name=modo]').forEach(r => r.onchange = () => impostaTasti(r.value));
+impostaTasti('salti');
+
+// ---------- Stato: app installata? offline pronto? spazio? ----------
+async function controllaStato() {
+  const v = [];
+  const installata = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  v.push('Aperta dalla schermata Home: ' + (installata ? 'SÌ' : 'no (aprila dall\'icona)'));
+  v.push('Media Session: ' + ('mediaSession' in navigator ? 'sì' : 'NO'));
+  if ('serviceWorker' in navigator) {
+    const reg = await navigator.serviceWorker.getRegistration();
+    v.push('Pronta per l\'offline: ' + (reg && reg.active ? 'SÌ' : 'non ancora (ricarica tra poco)'));
+  } else v.push('Service worker: NON supportato');
+  if (navigator.storage && navigator.storage.estimate) {
+    const persist = navigator.storage.persist ? await navigator.storage.persist() : false;
+    const est = await navigator.storage.estimate();
+    v.push('Spazio usato: ' + (est.usage / 1e6).toFixed(1) + ' MB su circa ' + (est.quota / 1e9).toFixed(1) + ' GB disponibili');
+    v.push('Dati protetti dalla pulizia automatica: ' + (persist ? 'sì' : 'no'));
+  }
+  v.push('Rete: ' + (navigator.onLine ? 'online' : 'OFFLINE'));
+  elStato.innerHTML = v.map(t => '<div>' + t + '</div>').join('');
+}
+
+// ---------- Registro del service worker (fa funzionare la pagina offline) ----------
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(() => controllaStato()).catch(e => log('Errore offline: ' + e.message));
+  navigator.serviceWorker.addEventListener('controllerchange', controllaStato);
+}
+addEventListener('online', controllaStato);
+addEventListener('offline', controllaStato);
+controllaStato();
+</script>
+</body>
+</html>
