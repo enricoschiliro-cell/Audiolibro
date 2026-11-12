@@ -337,6 +337,9 @@ async function registraServiceWorker() {
   }
   try {
     const reg = await navigator.serviceWorker.register('sw.js');
+    diagnosiServiceWorker(reg);   // scrive nel Registro se il service worker sta davvero lavorando
+    // Al primissimo avvio il service worker si sta ancora installando: scrivo una seconda riga appena è attivo
+    if (!reg.active) navigator.serviceWorker.ready.then(() => diagnosiServiceWorker(reg)).catch(() => {});
     const controllaAttesa = () => { if (reg.waiting && navigator.serviceWorker.controller) mostraAvvisoAggiornamento(reg.waiting); };
     controllaAttesa();
     reg.addEventListener('updatefound', () => {
@@ -347,6 +350,33 @@ async function registraServiceWorker() {
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (approvaRicarica) location.reload(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
   } catch (e) { errore('service worker', e); }
+}
+
+// Diagnosi: UNA riga nel Registro che dice se il service worker (la parte che fa funzionare l'app senza internet)
+// è attivo, se controlla questa pagina, quali cache dell'app ci sono e se il browser pensa di avere la rete.
+// "controlla questa pagina: NO" è normale solo al primissimo avvio dopo l'installazione; dal secondo avvio deve essere SÌ.
+async function diagnosiServiceWorker(reg) {
+  try {
+    const stati = [];
+    if (reg.active) stati.push('attivo');
+    if (reg.waiting) stati.push('versione nuova in attesa');
+    if (reg.installing) stati.push('in installazione');
+    const controlla = !!navigator.serviceWorker.controller;
+    const dettaglio = [];
+    if (window.caches) {
+      for (const nome of await caches.keys()) {
+        if (!nome.startsWith('app-')) continue;
+        const c = await caches.open(nome);
+        dettaglio.push(nome + ' (' + (await c.keys()).length + ' file)');
+      }
+    }
+    log('service worker: ' + (stati.join(', ') || 'nessuno') +
+        ' · controlla questa pagina: ' + (controlla ? 'SÌ' : 'NO (normale solo al primissimo avvio)') +
+        ' · cache: ' + (dettaglio.join(', ') || 'nessuna') +
+        ' · rete secondo il browser: ' + (navigator.onLine ? 'presente' : 'ASSENTE'));
+  } catch (e) {
+    log('service worker: diagnosi non riuscita (' + (e && e.message ? e.message : e) + ')', true);
+  }
 }
 
 function mostraAvvisoAggiornamento(worker) {
