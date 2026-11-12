@@ -29,7 +29,7 @@
     </header>
     <div id="msg-funzioni" class="errore" hidden></div>
     <div id="elenco-libri"></div>
-    <div class="riga"><button id="btn-importa">Importa libro</button></div>
+    <div class="riga"><button id="btn-importa">Importa libro</button><button id="btn-stat" class="sec">Statistiche</button></div>
     <!-- Nessun "accept": così lo zip non può apparire in grigio nel selettore di iPhone. Il controllo lo fa il codice. -->
     <input type="file" id="file-importa" hidden>
     <div id="importazione" class="riquadro" hidden>
@@ -47,6 +47,7 @@
     </header>
     <div id="cap-intestazione"></div>
     <button id="btn-riprendi" hidden></button>
+    <button id="btn-segnalibri" class="sec" hidden>Segnalibri</button>
     <ol id="elenco-capitoli"></ol>
   </section>
 
@@ -59,6 +60,7 @@
     <div id="testo"></div>
     <button id="btn-torna-voce" class="piccolo" hidden>Torna alla voce</button>
     <div id="comandi">
+      <div id="barra-segnalibro" class="riquadro" hidden></div>
       <div id="let-tempo">0:00 / 0:00</div>
       <div id="let-frase" class="piccolo"></div>
       <div class="riga">
@@ -67,6 +69,13 @@
         <button id="btn-play">▶ Play</button>
         <button id="btn-piu10" class="sec">+10 s</button>
         <button id="btn-succ" class="sec piccolo" aria-label="Capitolo successivo">⏭</button>
+      </div>
+      <!-- Seconda riga: velocità di lettura, timer di spegnimento, segnalibri -->
+      <div class="riga riga2">
+        <button id="btn-velocita" class="sec" aria-label="Velocità di lettura">1×</button>
+        <button id="btn-timer" class="sec" aria-label="Timer di spegnimento">⏲ Timer</button>
+        <button id="btn-segna" class="sec" aria-label="Segna questo punto">🔖 Segna</button>
+        <button id="btn-elenco-seg" class="sec piccolo" aria-label="Elenco dei segnalibri">📑</button>
       </div>
     </div>
   </section>
@@ -113,6 +122,24 @@
         <button id="lab-3m" class="sec piccolo">Vai a 3 min dalla fine</button>
       </div>
     </fieldset>
+  </div>
+
+  <!-- ====== Pannello segnalibri ====== -->
+  <div id="pannello-segnalibri" class="pannello" hidden>
+    <div class="testata">
+      <strong id="seg-titolo">Segnalibri</strong>
+      <button id="seg-chiudi" class="sec piccolo">Chiudi</button>
+    </div>
+    <div id="seg-elenco"></div>
+  </div>
+
+  <!-- ====== Pannello statistiche ====== -->
+  <div id="pannello-stat" class="pannello" hidden>
+    <div class="testata">
+      <strong>Statistiche di ascolto</strong>
+      <button id="stat-chiudi" class="sec piccolo">Chiudi</button>
+    </div>
+    <div id="stat-corpo"></div>
   </div>
 
   <script type="module" src="js/main.js"></script>

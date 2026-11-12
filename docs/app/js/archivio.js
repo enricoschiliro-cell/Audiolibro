@@ -116,7 +116,7 @@ export async function eliminaLibro(id) {
   tx.objectStore('tempi').delete(intervallo);
   tx.objectStore('libri').delete(id);
   await fine;
-  try { localStorage.removeItem('al.pos.' + id); } catch (e) { /* pazienza */ }
+  try { localStorage.removeItem('al.pos.' + id); localStorage.removeItem('al.seg.' + id); } catch (e) { /* pazienza */ }   // posizione e segnalibri del libro
 }
 
 // ---------- Lettura di un capitolo ----------

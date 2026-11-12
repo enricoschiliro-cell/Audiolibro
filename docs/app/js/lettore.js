@@ -9,9 +9,12 @@
 
 import { log, errore } from './registro.js';
 import * as arch from './archivio.js';
-import { inizioFrase } from './util.js';
+import { inizioFrase, indiceSegmento } from './util.js';
+import * as timer from './timer.js';
+import * as stat from './statistiche.js';
 
 const SALVA_OGNI_MS = 5000;
+export const VELOCITA = [0.8, 1, 1.1, 1.25, 1.5, 1.75, 2];   // velocità di lettura che il pulsante fa scorrere in cerchio
 const ANTICIPO_B_S = 0.6;   // variante B: cambio quando t >= fine dell'ultima frase + 0,6 s (dentro il silenzio finale di 1,5 s)
 
 const S = {
@@ -25,6 +28,7 @@ const S = {
   attivo: null,           // elemento <audio> che suona
   riserva: null,          // secondo elemento (variante C)
   variante: 'B',
+  velocita: 1,            // velocità di lettura (1 = normale)
   cambioFatto: false,     // per non cambiare capitolo due volte
   cambiando: false,       // true mentre sto cambiando la sorgente (dentro usaCapitolo)
   ultimoCambio: -1000,    // quando ho cambiato sorgente l'ultima volta (performance.now())
@@ -33,6 +37,8 @@ const S = {
   ui: {},
 };
 const sbloccati = new WeakSet();   // gli elementi <audio> già avviati da un tocco dell'utente
+let ultimoTic = 0;                 // quando ho contato il tempo di ascolto l'ultima volta (performance.now())
+let ultimoAggTimer = 0;            // quando ho aggiornato l'etichetta del timer l'ultima volta
 
 function totale() { return S.libro ? S.libro.manifest.capitoli.length : 0; }
 function capitolo(idx = S.idx) { return S.libro && S.libro.manifest.capitoli[idx]; }
@@ -43,36 +49,42 @@ export function init({ audio, audio2, ui }) {
   S.riserva = audio2;
   S.ui = ui;
   try { const v = localStorage.getItem('al.variante'); if (v === 'A' || v === 'B' || v === 'C') S.variante = v; } catch (e) { /* pazienza */ }
+  try { const v = parseFloat(localStorage.getItem('al.velocita')); if (VELOCITA.includes(v)) S.velocita = v; } catch (e) { /* pazienza */ }
+  applicaVelocita();
   collega(audio);
   collega(audio2);
   impostaMediaSession();
-  setInterval(() => { if (staSuonando()) salvaPosizione(); }, SALVA_OGNI_MS);
+  setInterval(() => { if (staSuonando()) salvaPosizione(); stat.salva(); }, SALVA_OGNI_MS);
+  setInterval(tic, 1000);   // oltre che a ogni "timeupdate": conta il tempo di ascolto (statistiche e timer)
   document.addEventListener('visibilitychange', () => {
     log(document.hidden ? 'app in background' : 'app di nuovo visibile');
-    if (document.hidden) salvaPosizione();
+    if (document.hidden) { salvaPosizione(); stat.salva(); }
     else S.ui.riallinea && S.ui.riallinea();
   });
-  window.addEventListener('pagehide', salvaPosizione);
+  window.addEventListener('pagehide', () => { salvaPosizione(); stat.salva(); });
+  if (S.ui.velocita) S.ui.velocita(S.velocita);
 }
 
 // Eventi di un elemento audio. Quelli del lettore "di riserva" si ignorano (conta solo quello attivo).
 function collega(el) {
   const mio = () => el === S.attivo;
-  el.addEventListener('timeupdate', () => { if (!mio()) return; aggiornaTempo(); controllaAnticipo(); });
+  el.addEventListener('timeupdate', () => { if (!mio()) return; aggiornaTempo(); controllaAnticipo(); tic(); });
   el.addEventListener('durationchange', () => { if (mio()) aggiornaTempo(); });
   el.addEventListener('loadedmetadata', () => { if (mio()) { aggiornaTempo(); aggiornaPosizioneSessione(); } });
   el.addEventListener('play', () => {
     if (!mio()) return;
+    ultimoTic = performance.now();   // da qui in poi conto il tempo di ascolto
     S.ui.stato(true); statoSessione('playing'); aggiornaPosizioneSessione(); log('play');
   });
   el.addEventListener('pause', () => {
     // Gli eventi arrivano DOPO che la funzione che ha cambiato la sorgente è finita: per ignorare un'eventuale "pausa"
     // causata dal cambio uso il tempo trascorso dall'ultimo cambio (300 ms).
     if (!mio() || performance.now() - S.ultimoCambio < 300) return;
-    S.ui.stato(false); statoSessione('paused'); salvaPosizione(); log('pausa');
+    S.ui.stato(false); statoSessione('paused'); salvaPosizione(); stat.salva(); log('pausa');
   });
   el.addEventListener('seeked', () => { if (mio()) { aggiornaTempo(); aggiornaPosizioneSessione(); salvaPosizione(); } });
   el.addEventListener('ended', () => { if (mio()) quandoFinito(); });
+  el.addEventListener('ratechange', () => { if (mio()) { aggiornaPosizioneSessione(); if (S.ui.velocita) S.ui.velocita(S.velocita); } });
   el.addEventListener('waiting', () => { if (mio()) log('lettore: in attesa di dati'); });
   el.addEventListener('stalled', () => { if (mio()) log('lettore: dati bloccati'); });
   el.addEventListener('error', () => { if (mio()) erroreAudio(); });
@@ -248,6 +260,61 @@ export function impostaVariante(v) {
 }
 export function variante() { return S.variante; }
 
+// ---------- Velocità di lettura ----------
+// Si imposta sia playbackRate (vale subito) sia defaultPlaybackRate (il browser lo rimette da solo a ogni cambio di capitolo).
+function applicaVelocita() {
+  for (const el of [S.attivo, S.riserva]) {
+    if (!el) continue;
+    try { el.defaultPlaybackRate = S.velocita; el.playbackRate = S.velocita; } catch (e) { /* pazienza */ }
+    try { el.preservesPitch = true; el.webkitPreservesPitch = true; } catch (e) { /* pazienza */ }   // la voce non diventa più acuta
+  }
+}
+export function velocita() { return S.velocita; }
+export function impostaVelocita(v) {
+  if (!VELOCITA.includes(v)) return;
+  S.velocita = v;
+  try { localStorage.setItem('al.velocita', String(v)); } catch (e) { /* pazienza */ }
+  applicaVelocita();
+  aggiornaPosizioneSessione();
+  if (S.ui.velocita) S.ui.velocita(v);
+  log('velocità = ' + v + '×');
+}
+// Passa alla velocità successiva della lista (dopo l'ultima torna alla prima)
+export function prossimaVelocita() {
+  const i = VELOCITA.indexOf(S.velocita);
+  impostaVelocita(VELOCITA[(i + 1) % VELOCITA.length]);
+}
+
+// ---------- Tempo di ascolto: statistiche e timer di spegnimento ----------
+// Si chiama a ogni "timeupdate" (circa 4 volte al secondo) e ogni secondo. Conta solo il tempo in cui l'audio suona davvero;
+// un intervallo troppo lungo (app congelata da iOS) si taglia a 2 s, così non si contano minuti che non ci sono stati.
+function tic() {
+  const ora = performance.now();
+  const delta = Math.min(ora - ultimoTic, 2000);
+  ultimoTic = ora;
+  if (!S.libro || !staSuonando() || delta <= 0) return;
+  stat.aggiungi(S.libro.id, S.libro.manifest.libro.titolo, delta);
+  if (timer.consuma(delta)) {
+    log('timer di spegnimento: tempo finito, fermo l’audio (schermo ' + (document.hidden ? 'nascosto' : 'visibile') + ')');
+    pausa();
+    if (S.ui.timer) S.ui.timer();
+    return;
+  }
+  if (!document.hidden && ora - ultimoAggTimer >= 1000) { ultimoAggTimer = ora; if (S.ui.timer) S.ui.timer(); }
+}
+
+// ---------- Segnalibri ----------
+// Il punto da segnare: l'INIZIO della frase che si sta ascoltando (come per "Riprendi")
+export function puntoCorrente() {
+  const cap = capitolo();
+  if (!S.libro || !cap || !S.tempi || !S.attivo || !S.attivo.getAttribute('src')) return null;
+  const seg = S.tempi.segmenti;
+  if (!seg.length) return null;
+  const i = Math.max(0, indiceSegmento(seg, S.attivo.currentTime));
+  const testo = String(seg[i].testo || '').replace(/\s+/g, ' ').trim();
+  return { cap: cap.id, t: seg[i].inizio, testo: testo.length > 120 ? testo.slice(0, 117) + '…' : testo };
+}
+
 // ---------- Posizione ----------
 function salvaPosizione() {
   const cap = capitolo();
@@ -271,15 +338,37 @@ function quandoFinito() {
   passaAlSuccessivo('fine audio');
 }
 
+// Timer di spegnimento su "fine capitolo": apro il capitolo successivo FERMO (così "Riprendi" riparte da lì) e non faccio partire l'audio.
+function fermaAlCapitolo(i) {
+  S.cambioFatto = true;
+  timer.spegni();
+  log('timer di spegnimento: mi fermo alla fine del capitolo ' + capitolo().id + ' (schermo ' + (document.hidden ? 'nascosto' : 'visibile') + ')');
+  const fatto = (pronto) => {
+    try {
+      S.prossimo = null;
+      usaCapitolo(pronto, 0, false);
+    } catch (e) { errore('timer di fine capitolo', e); S.cambioFatto = false; }
+    S.ui.stato(false);
+    statoSessione('paused');
+    salvaPosizione();
+    if (S.ui.timer) S.ui.timer();
+  };
+  if (S.prossimo && S.prossimo.idx === i) { fatto(S.prossimo); return; }
+  caricaCapitolo(i).then(fatto).catch((e) => { errore('timer di fine capitolo (caricamento)', e); S.cambioFatto = false; });
+}
+
 function passaAlSuccessivo(motivo) {
   if (S.cambioFatto || S.cambiando) return;
   const i = S.idx + 1;
   if (i >= totale()) {
     log('fine del libro');
+    timer.spegni();
+    if (S.ui.timer) S.ui.timer();
     S.ui.stato(false);
     salvaPosizione();
     return;
   }
+  if (timer.aFineCapitolo()) { fermaAlCapitolo(i); return; }
   S.cambioFatto = true;
   const v = S.variante;
   const schermo = document.hidden ? 'NASCOSTO/bloccato' : 'visibile';
@@ -363,7 +452,7 @@ function aggiornaMetadataSessione() {
 function aggiornaPosizioneSessione() {
   const el = S.attivo;
   if (!('mediaSession' in navigator) || !el || !isFinite(el.duration) || el.duration <= 0) return;
-  try { navigator.mediaSession.setPositionState({ duration: el.duration, playbackRate: 1, position: Math.min(el.currentTime, el.duration) }); } catch (e) { /* pazienza */ }
+  try { navigator.mediaSession.setPositionState({ duration: el.duration, playbackRate: el.playbackRate || 1, position: Math.min(el.currentTime, el.duration) }); } catch (e) { /* pazienza */ }
 }
 
 function impostaMediaSession() {

@@ -59,7 +59,7 @@ label { display: block; padding: 5px 0; }
 #testo p { margin: 0 0 18px; }
 .frase { border-radius: 4px; padding: 1px 0; -webkit-tap-highlight-color: transparent; }
 .frase.attiva { background: rgba(255,140,40,.28); box-shadow: 0 0 0 3px rgba(255,140,40,.28); }
-#btn-torna-voce { position: fixed; right: 16px; bottom: calc(150px + env(safe-area-inset-bottom)); z-index: 20; min-height: 40px; }
+#btn-torna-voce { position: fixed; right: 16px; bottom: calc(205px + env(safe-area-inset-bottom)); z-index: 20; min-height: 40px; }
 #comandi { background: var(--fondo); border-top: 1px solid var(--tenue); padding: 8px 0 calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; }
 #let-tempo { font-size: 24px; text-align: center; }
 #let-frase { text-align: center; }
@@ -67,6 +67,14 @@ label { display: block; padding: 5px 0; }
 #comandi .riga button { min-height: 56px; padding: 0 4px; font-size: 16px; white-space: nowrap; }
 #comandi .riga button.piccolo { flex: 0 0 46px; min-height: 56px; padding: 0; font-size: 18px; }
 #btn-play { flex: 2; }
+/* Seconda riga di comandi: velocità, timer, segnalibri (un po' più bassa della prima) */
+#comandi .riga2 button { min-height: 44px; font-size: 15px; padding: 0 4px; }
+#comandi .riga2 button.piccolo { flex: 0 0 46px; min-height: 44px; font-size: 18px; }
+button.sec.acceso { background: var(--arancio); color: var(--fondo); }   /* timer attivo */
+/* Barra "Segnalibro salvato" (e campo della nota) sopra i comandi */
+#barra-segnalibro { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 6px 8px; font-size: 14px; }
+#barra-segnalibro input, .segnalibro input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 8px; border-radius: 8px; border: 1px solid var(--tenue); background: var(--pannello); color: var(--testo); }
+#barra-segnalibro button { min-height: 36px; flex: 0 0 auto; }
 
 /* Con la barra "In ascolto" visibile lascio spazio in fondo alle viste */
 body.con-minibarra .vista { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
@@ -75,8 +83,27 @@ body.con-minibarra .vista { padding-bottom: calc(90px + env(safe-area-inset-bott
 #minibarra { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); background: var(--fondo); border-top: 1px solid var(--arancio); z-index: 10; }
 #minibarra button { width: 100%; min-height: 44px; font-size: 15px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Pannello segnalibri */
+.segnalibro { background: var(--pannello); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.segnalibro .titolo { color: var(--arancio); overflow-wrap: anywhere; }
+.segnalibro .frase-seg { font: italic 15px/1.4 Georgia, "Times New Roman", serif; color: var(--tenue); overflow-wrap: anywhere; }
+.segnalibro .nota { overflow-wrap: anywhere; }
+.segnalibro .azioni { display: flex; gap: 8px; }
+.segnalibro .azioni button { min-height: 40px; font-size: 15px; padding: 0 10px; }
+.segnalibro input { flex: 0 0 auto; width: 100%; background: var(--fondo); }
+
+/* Pannello statistiche */
+.stat-titolo { color: var(--arancio); margin: 14px 0 6px; }
+.stat-riga { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid rgba(160,140,120,.25); }
+.stat-riga span:first-child { overflow-wrap: anywhere; }
+.stat-riga span:last-child { white-space: nowrap; }
+.stat-giorno { display: grid; grid-template-columns: 52px 1fr 64px; gap: 8px; align-items: center; font-size: 14px; padding: 2px 0; }
+.stat-giorno span:last-child { text-align: right; }
+.stat-barra { height: 10px; background: rgba(255,140,40,.15); border-radius: 5px; overflow: hidden; }
+.stat-barra > div { height: 100%; background: var(--arancio); }
+
 /* Registro */
-#pannello-registro { position: fixed; inset: 0; z-index: 50; background: var(--fondo); overflow-y: auto; padding: calc(12px + env(safe-area-inset-top)) 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+#pannello-registro, .pannello { position: fixed; inset: 0; z-index: 50; background: var(--fondo); overflow-y: auto; padding: calc(12px + env(safe-area-inset-top)) 16px 24px; display: flex; flex-direction: column; gap: 10px; }
 #reg-righe { font-size: 12px; border: 1px solid var(--tenue); border-radius: 10px; padding: 8px; max-height: 40vh; overflow-y: auto; overflow-wrap: anywhere; }
 #reg-righe div { padding: 1px 0; }
 #reg-righe .err { color: var(--errore); }
