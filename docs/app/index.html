@@ -11,7 +11,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Audiolibro">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="theme-color" content="#1a1410">
+  <meta name="theme-color" content="#141413">
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -24,9 +24,14 @@
   <!-- ====== Vista 1: libreria ====== -->
   <section id="vista-libreria" class="vista">
     <header class="testata">
-      <h1>&gt;_ Audiolibro</h1>
+      <h1>Audiolibro</h1>
       <button id="btn-registro" class="sec piccolo">Registro</button>
     </header>
+    <!-- Caramella (mascotte) con la sua nuvoletta -->
+    <div class="scena" id="scena-libreria">
+      <canvas id="caramella-libreria" class="caramella" width="24" height="24" aria-hidden="true"></canvas>
+      <div id="nuvoletta-libreria" class="nuvoletta" hidden></div>
+    </div>
     <div id="msg-funzioni" class="errore" hidden></div>
     <div id="elenco-libri"></div>
     <div class="riga"><button id="btn-importa">Importa libro</button><button id="btn-stat" class="sec">Statistiche</button></div>
@@ -37,7 +42,7 @@
       <progress id="imp-barra" max="100" value="0"></progress>
     </div>
     <div id="msg-importa" class="errore" hidden></div>
-    <div id="stato-spazio" class="piccolo"></div>
+    <div id="stato-spazio" class="stato"></div>
   </section>
 
   <!-- ====== Vista 2: capitoli di un libro ====== -->
@@ -56,33 +61,36 @@
     <header class="testata">
       <button id="let-indietro" class="sec piccolo">‹ Capitoli</button>
       <div id="let-titolo"></div>
+      <canvas id="let-caramella" class="caramella x2" width="24" height="24" aria-hidden="true"></canvas>
     </header>
+    <div id="nuvoletta-lettore" class="nuvoletta" hidden></div>
     <div id="testo"></div>
     <button id="btn-torna-voce" class="piccolo" hidden>Torna alla voce</button>
     <div id="comandi">
       <div id="barra-segnalibro" class="riquadro" hidden></div>
       <div id="let-tempo">0:00 / 0:00</div>
-      <div id="let-frase" class="piccolo"></div>
+      <div id="let-frase" class="stato"></div>
+      <!-- Solo testo e simboli semplici (niente emoji a colori: il tema le vieta) -->
       <div class="riga">
-        <button id="btn-prec" class="sec piccolo" aria-label="Capitolo precedente">⏮</button>
+        <button id="btn-prec" class="sec piccolo" aria-label="Capitolo precedente">&lt;&lt;</button>
         <button id="btn-meno10" class="sec">−10 s</button>
-        <button id="btn-play">▶ Play</button>
+        <button id="btn-play">&gt; Play</button>
         <button id="btn-piu10" class="sec">+10 s</button>
-        <button id="btn-succ" class="sec piccolo" aria-label="Capitolo successivo">⏭</button>
+        <button id="btn-succ" class="sec piccolo" aria-label="Capitolo successivo">&gt;&gt;</button>
       </div>
       <!-- Seconda riga: velocità di lettura, timer di spegnimento, segnalibri -->
       <div class="riga riga2">
         <button id="btn-velocita" class="sec" aria-label="Velocità di lettura">1×</button>
-        <button id="btn-timer" class="sec" aria-label="Timer di spegnimento">⏲ Timer</button>
-        <button id="btn-segna" class="sec" aria-label="Segna questo punto">🔖 Segna</button>
-        <button id="btn-elenco-seg" class="sec piccolo" aria-label="Elenco dei segnalibri">📑</button>
+        <button id="btn-timer" class="sec" aria-label="Timer di spegnimento">Timer</button>
+        <button id="btn-segna" class="sec" aria-label="Segna questo punto">Segna</button>
+        <button id="btn-elenco-seg" class="sec piccolo" aria-label="Elenco dei segnalibri">Elenco</button>
       </div>
     </div>
   </section>
 
   <!-- Barra "In ascolto" nelle viste libreria e capitoli -->
   <div id="minibarra" hidden>
-    <button id="minibarra-apri" class="sec"><span id="minibarra-stato">▶</span> <span id="minibarra-titolo"></span></button>
+    <button id="minibarra-apri" class="sec"><span id="minibarra-stato">&gt;</span> <span id="minibarra-titolo"></span></button>
   </div>
 
   <!-- I lettori audio stanno FUORI dalle viste: cambiando schermata l'audio non si ferma.
@@ -102,6 +110,13 @@
       <button id="reg-pulisci" class="sec piccolo">Pulisci</button>
     </div>
     <div id="reg-righe"></div>
+    <fieldset id="aspetto">
+      <legend>Aspetto</legend>
+      <label><input type="checkbox" id="asp-caramella"> Mostra Caramella</label>
+      <label><input type="checkbox" id="asp-scanline"> Righe da terminale (scanline)</label>
+      <label><input type="checkbox" id="asp-glow"> Alone arancione sui titoli</label>
+      <label><input type="checkbox" id="asp-sans"> Testo del libro in carattere proporzionale</label>
+    </fieldset>
     <fieldset id="laboratorio">
       <legend>Laboratorio (prove)</legend>
       <div id="lab-info" class="piccolo"></div>

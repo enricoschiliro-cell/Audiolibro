@@ -10,6 +10,8 @@ import { mmss, durataLunga, mbLeggibili } from './util.js';
 import * as timer from './timer.js';
 import * as segnalibri from './segnalibri.js';
 import * as statistiche from './statistiche.js';
+import { Caramella } from './caramella.js';
+import { inizializzaAspetto } from './aspetto.js';
 
 const $ = (id) => document.getElementById(id);
 const viste = { libreria: $('vista-libreria'), capitoli: $('vista-capitoli'), lettore: $('vista-lettore') };
@@ -18,6 +20,42 @@ let libroAperto = null;            // record del libro mostrato nella vista capi
 let importazioneInCorso = false;
 let copertineLibreria = [];        // indirizzi blob: delle copertine da liberare quando ridisegno
 let copertinaCapitoli = null;
+
+inizializzaAspetto();   // applica subito le scelte salvate (scanline, alone, testo proporzionale, Caramella)
+
+// ---------- Caramella (la mascotte) ----------
+// Libreria: sprite grande con la nuvoletta. Lettore: sprite piccolo; legge mentre suona, dorme dopo un minuto di pausa o a fine timer.
+const caramellaLib = new Caramella($('caramella-libreria'));
+const caramellaLet = new Caramella($('let-caramella'));
+const FRASI_COCCOLE = ['mmm, che bello!', 'ancora un po’…', 'grazie!'];
+const timerNuvolette = {};
+let salutata = false;   // la nuvoletta di benvenuto della libreria si dice una sola volta
+function parla(idNuvoletta, testo, ms = 3500) {
+  const n = $(idNuvoletta);
+  n.textContent = testo;
+  n.hidden = false;
+  clearTimeout(timerNuvolette[idNuvoletta]);
+  timerNuvolette[idNuvoletta] = setTimeout(() => { n.hidden = true; }, ms);
+}
+let faDormire = false;   // il timer di spegnimento è finito: Caramella dorme finché non riparte l'audio
+let timerSonno = null;
+function caramellaStato(inRiproduzione) {
+  clearTimeout(timerSonno);
+  if (inRiproduzione) { faDormire = false; caramellaLet.imposta('legge'); return; }
+  if (faDormire) { caramellaLet.imposta('dorme'); return; }
+  caramellaLet.imposta('fermo');
+  timerSonno = setTimeout(() => caramellaLet.imposta('dorme'), 60000);   // dopo un minuto di pausa si addormenta
+}
+// Una carezza (tocco sullo sprite): coccole e una frase
+[[caramellaLib, 'caramella-libreria', 'nuvoletta-libreria'], [caramellaLet, 'let-caramella', 'nuvoletta-lettore']].forEach(([c, idCanvas, idNuvoletta]) => {
+  $(idCanvas).addEventListener('click', () => {
+    c.gioca('coccole');
+    parla(idNuvoletta, FRASI_COCCOLE[Math.floor(Math.random() * FRASI_COCCOLE.length)], 2500);
+  });
+});
+// Nella libreria, ogni tanto, cambia quello che fa
+const VARIAZIONI_LIBRERIA = ['fermo', 'palpebre', 'si guarda intorno', 'fluttua'];
+setInterval(() => { if (!document.hidden) caramellaLib.imposta(VARIAZIONI_LIBRERIA[Math.floor(Math.random() * VARIAZIONI_LIBRERIA.length)]); }, 9000);
 
 // ---------- Viste ----------
 function mostra(nome) {
@@ -45,8 +83,9 @@ $('btn-torna-voce').onclick = () => vista.setAutoScroll(true);
 let ultimaFrase = -2;
 const ui = {
   stato(inRiproduzione) {
-    $('btn-play').textContent = inRiproduzione ? '⏸ Pausa' : '▶ Play';
-    $('minibarra-stato').textContent = inRiproduzione ? '⏸' : '▶';
+    $('btn-play').textContent = inRiproduzione ? '|| Pausa' : '> Play';
+    $('minibarra-stato').textContent = inRiproduzione ? '||' : '>';
+    caramellaStato(inRiproduzione);
   },
   tempo(t, durata) {
     $('let-tempo').textContent = mmss(t) + ' / ' + mmss(durata);
@@ -65,10 +104,12 @@ const ui = {
   },
   caricamento(acceso) {
     $('btn-play').disabled = acceso;
-    if (acceso) $('let-frase').textContent = 'Carico il capitolo…';
+    if (acceso) $('let-frase').textContent = 'carico il capitolo…';
   },
   messaggio(testo) { $('let-frase').textContent = testo; },
   riallinea() { vista.riallinea(); },
+  timerFinito() { faDormire = true; caramellaLet.imposta('dorme'); parla('nuvoletta-lettore', 'buonanotte… zzz', 8000); },
+  fineLibro() { caramellaLet.gioca('saluta'); parla('nuvoletta-lettore', 'finito! è stato bellissimo…', 8000); },
   velocita(v) { $('btn-velocita').textContent = String(v).replace('.', ',') + '×'; },
   timer() { $('btn-timer').textContent = timer.etichetta(); $('btn-timer').classList.toggle('acceso', timer.attivo()); },
 };
@@ -148,6 +189,7 @@ async function disegnaLibreria() {
       box.appendChild(p);
     }
     for (const l of libri) box.appendChild(schedaLibro(l));
+    if (!salutata) { salutata = true; parla('nuvoletta-libreria', libri.length ? 'ciao! cosa leggiamo oggi?' : 'non ho libri… importane uno!', 6000); }
   } catch (e) {
     errore('libreria', e);
     mostraErroreImporta('Non riesco a leggere la libreria: ' + (e && e.message ? e.message : e));
@@ -208,6 +250,8 @@ async function eseguiImportazione(file) {
       $('imp-barra').value = percentuale;
     });
     $('imp-testo').textContent = 'Importazione finita.';
+    caramellaLib.gioca('saltello');
+    parla('nuvoletta-libreria', 'nuovo libro! non vedo l’ora…', 5000);
     setTimeout(() => { if (!importazioneInCorso) $('importazione').hidden = true; }, 3000);
   } catch (e) {
     errore('importazione', e);
@@ -315,6 +359,7 @@ $('btn-timer').onclick = () => {
   const etichetta = timer.ciclo();
   ui.timer();
   log('timer di spegnimento: ' + etichetta);
+  parla('nuvoletta-lettore', timer.aFineCapitolo() ? 'mi fermo a fine capitolo!' : (timer.attivo() ? 'va bene, tengo io il conto!' : 'ok, niente timer!'), 2500);
 };
 
 // ---------- Segnalibri ----------
@@ -377,6 +422,7 @@ $('btn-segna').onclick = () => {
   if (r.errore) { ui.messaggio('Non riesco a salvare il segnalibro (spazio del telefono).'); log('segnalibro: salvataggio NON riuscito', true); return; }
   log('segnalibro ' + (r.nuovo ? 'salvato' : 'già presente') + ': ' + p.cap + ' a ' + mmss(p.t));
   mostraBarraSegnalibro(r.segnalibro, r.nuovo);
+  if (r.nuovo) { caramellaLet.gioca('saluta'); parla('nuvoletta-lettore', 'segnato! ci torniamo…', 2500); }
 };
 
 // L'elenco dei segnalibri del libro aperto
@@ -388,7 +434,7 @@ function disegnaSegnalibri() {
   box.textContent = '';
   const lista = segnalibri.elenco(l.id).slice().sort((a, b) => (indiceCapitolo(a.cap) - indiceCapitolo(b.cap)) || (a.t - b.t));
   if (!lista.length) {
-    box.appendChild(crea('p', 'piccolo', 'Nessun segnalibro. Nel lettore tocca «🔖 Segna» per segnare la frase che stai ascoltando.'));
+    box.appendChild(crea('p', 'piccolo', 'Nessun segnalibro. Nel lettore tocca «Segna» per segnare la frase che stai ascoltando.'));
     return;
   }
   for (const s of lista) box.appendChild(schedaSegnalibro(l, s));
@@ -405,7 +451,7 @@ function schedaSegnalibro(l, s) {
   const vai = bottone('Vai', null, () => vaiAlSegnalibro(s));
   vai.disabled = i < 0;
   azioni.appendChild(vai);
-  azioni.appendChild(bottone(s.nota ? 'Cambia nota' : 'Nota', 'sec', () => modificaNotaNellElenco(div, azioni, s)));
+  azioni.appendChild(bottone(s.nota ? 'Modifica' : 'Nota', 'sec', () => modificaNotaNellElenco(div, azioni, s)));
   const elimina = bottone('Elimina', 'sec', () => {
     if (!elimina.dataset.sicuro) {   // due tocchi: il primo chiede conferma, il secondo elimina (senza finestre del browser)
       elimina.dataset.sicuro = '1';

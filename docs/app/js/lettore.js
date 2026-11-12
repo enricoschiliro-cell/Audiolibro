@@ -298,6 +298,7 @@ function tic() {
     log('timer di spegnimento: tempo finito, fermo l’audio (schermo ' + (document.hidden ? 'nascosto' : 'visibile') + ')');
     pausa();
     if (S.ui.timer) S.ui.timer();
+    if (S.ui.timerFinito) S.ui.timerFinito();
     return;
   }
   if (!document.hidden && ora - ultimoAggTimer >= 1000) { ultimoAggTimer = ora; if (S.ui.timer) S.ui.timer(); }
@@ -352,6 +353,7 @@ function fermaAlCapitolo(i) {
     statoSessione('paused');
     salvaPosizione();
     if (S.ui.timer) S.ui.timer();
+    if (S.ui.timerFinito) S.ui.timerFinito();
   };
   if (S.prossimo && S.prossimo.idx === i) { fatto(S.prossimo); return; }
   caricaCapitolo(i).then(fatto).catch((e) => { errore('timer di fine capitolo (caricamento)', e); S.cambioFatto = false; });
@@ -365,6 +367,7 @@ function passaAlSuccessivo(motivo) {
     timer.spegni();
     if (S.ui.timer) S.ui.timer();
     S.ui.stato(false);
+    if (S.ui.fineLibro) S.ui.fineLibro();
     salvaPosizione();
     return;
   }

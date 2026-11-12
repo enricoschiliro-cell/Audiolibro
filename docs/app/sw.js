@@ -3,12 +3,12 @@
 //
 // PRIMA DI OGNI PUBBLICAZIONE: se è cambiato un file elencato qui sotto, aumenta VERSIONE.
 // Con un numero nuovo il telefono scarica tutti i file insieme e non può mescolare file vecchi e nuovi.
-const VERSIONE = 3;
+const VERSIONE = 4;
 const CACHE = 'app-v' + VERSIONE;   // le cache dell'app cominciano sempre con "app-" (la pagina di prova usa altri nomi)
 const FILE = [
   './', 'index.html', 'app.css', 'manifest.webmanifest', 'icona-180.png', 'icona-512.png',
   'js/main.js', 'js/util.js', 'js/registro.js', 'js/zip.js', 'js/archivio.js', 'js/importa.js', 'js/lettore.js', 'js/testo.js', 'js/lab.js',
-  'js/timer.js', 'js/statistiche.js', 'js/segnalibri.js'
+  'js/timer.js', 'js/statistiche.js', 'js/segnalibri.js', 'js/caramella.js', 'js/aspetto.js'
 ];
 
 // Installazione: scarico e salvo tutti i file. NIENTE skipWaiting: la versione nuova resta "in attesa"

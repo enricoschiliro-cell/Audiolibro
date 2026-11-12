@@ -34,7 +34,7 @@ export function consuma(ms) {
 
 export function etichetta() {
   const o = OPZIONI[indice];
-  if (o === null) return '⏲ Timer';
-  if (o === 'capitolo') return '⏲ fine cap.';
-  return '⏲ ' + mmss(Math.ceil(restanteMs / 1000));
+  if (o === null) return 'Timer';
+  if (o === 'capitolo') return 'fine cap.';
+  return mmss(Math.ceil(restanteMs / 1000));
 }
