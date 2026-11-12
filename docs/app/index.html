@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Audiolibro</title>
+  <!-- Dati per "Aggiungi alla schermata Home" -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icona-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Audiolibro">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#1a1410">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <!-- Appare quando c'è una versione nuova dell'app già scaricata -->
+  <div id="avviso-aggiornamento" hidden>
+    <span id="avviso-aggiornamento-testo">Nuova versione disponibile.</span>
+    <button id="btn-aggiorna" class="piccolo">Aggiorna</button>
+  </div>
+
+  <!-- ====== Vista 1: libreria ====== -->
+  <section id="vista-libreria" class="vista">
+    <header class="testata">
+      <h1>&gt;_ Audiolibro</h1>
+      <button id="btn-registro" class="sec piccolo">Registro</button>
+    </header>
+    <div id="msg-funzioni" class="errore" hidden></div>
+    <div id="elenco-libri"></div>
+    <div class="riga"><button id="btn-importa">Importa libro</button></div>
+    <!-- Nessun "accept": così lo zip non può apparire in grigio nel selettore di iPhone. Il controllo lo fa il codice. -->
+    <input type="file" id="file-importa" hidden>
+    <div id="importazione" class="riquadro" hidden>
+      <div id="imp-testo"></div>
+      <progress id="imp-barra" max="100" value="0"></progress>
+    </div>
+    <div id="msg-importa" class="errore" hidden></div>
+    <div id="stato-spazio" class="piccolo"></div>
+  </section>
+
+  <!-- ====== Vista 2: capitoli di un libro ====== -->
+  <section id="vista-capitoli" class="vista" hidden>
+    <header class="testata">
+      <button id="cap-indietro" class="sec piccolo">‹ Libreria</button>
+    </header>
+    <div id="cap-intestazione"></div>
+    <button id="btn-riprendi" hidden></button>
+    <ol id="elenco-capitoli"></ol>
+  </section>
+
+  <!-- ====== Vista 3: lettore con testo ====== -->
+  <section id="vista-lettore" class="vista" hidden>
+    <header class="testata">
+      <button id="let-indietro" class="sec piccolo">‹ Capitoli</button>
+      <div id="let-titolo"></div>
+    </header>
+    <div id="testo"></div>
+    <button id="btn-torna-voce" class="piccolo" hidden>Torna alla voce</button>
+    <div id="comandi">
+      <div id="let-tempo">0:00 / 0:00</div>
+      <div id="let-frase" class="piccolo"></div>
+      <div class="riga">
+        <button id="btn-prec" class="sec piccolo" aria-label="Capitolo precedente">⏮</button>
+        <button id="btn-meno10" class="sec">−10 s</button>
+        <button id="btn-play">▶ Play</button>
+        <button id="btn-piu10" class="sec">+10 s</button>
+        <button id="btn-succ" class="sec piccolo" aria-label="Capitolo successivo">⏭</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Barra "In ascolto" nelle viste libreria e capitoli -->
+  <div id="minibarra" hidden>
+    <button id="minibarra-apri" class="sec"><span id="minibarra-stato">▶</span> <span id="minibarra-titolo"></span></button>
+  </div>
+
+  <!-- I lettori audio stanno FUORI dalle viste: cambiando schermata l'audio non si ferma.
+       Il secondo serve solo alla variante C della prova del cambio capitolo. -->
+  <audio id="audio" preload="auto"></audio>
+  <audio id="audio2" preload="auto"></audio>
+
+  <!-- ====== Pannello Registro + laboratorio ====== -->
+  <div id="pannello-registro" hidden>
+    <div class="testata">
+      <strong>Registro</strong>
+      <button id="reg-chiudi" class="sec piccolo">Chiudi</button>
+    </div>
+    <div class="riga">
+      <button id="reg-copia" class="sec piccolo">Copia</button>
+      <button id="reg-condividi" class="sec piccolo">Condividi</button>
+      <button id="reg-pulisci" class="sec piccolo">Pulisci</button>
+    </div>
+    <div id="reg-righe"></div>
+    <fieldset id="laboratorio">
+      <legend>Laboratorio (prove)</legend>
+      <div id="lab-info" class="piccolo"></div>
+      <div class="riga"><button id="lab-demo" class="sec piccolo">Importa il pacchetto dimostrativo</button></div>
+      <fieldset>
+        <legend>Cambio capitolo</legend>
+        <label><input type="radio" name="variante" value="A"> A · dopo la fine del capitolo</label>
+        <label><input type="radio" name="variante" value="B"> B · poco prima della fine</label>
+        <label><input type="radio" name="variante" value="C"> C · due lettori che si danno il cambio</label>
+      </fieldset>
+      <fieldset>
+        <legend>Come salvo l'audio sul telefono</legend>
+        <label><input type="radio" name="formato" value="blob"> Blob (normale)</label>
+        <label><input type="radio" name="formato" value="buffer"> Buffer (solo se il blob dà problemi)</label>
+      </fieldset>
+      <div class="riga">
+        <button id="lab-20s" class="sec piccolo">Vai a 20 s dalla fine</button>
+        <button id="lab-3m" class="sec piccolo">Vai a 3 min dalla fine</button>
+      </div>
+    </fieldset>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

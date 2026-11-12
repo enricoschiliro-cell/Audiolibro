@@ -1,0 +1,82 @@
+/* Stile dell'app Audiolibro: stesse tinte della pagina di prova (scuro con arancio). La grafica "Caramella" arriva in una fase successiva. */
+:root { --fondo:#1a1410; --pannello:#241b15; --testo:#f3e6d8; --arancio:#ff8c28; --tenue:#a08c78; --errore:#ff6b5e; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--fondo); color: var(--testo); }
+body {
+  font: 16px/1.45 ui-monospace, Menlo, Consolas, monospace;
+  padding: env(safe-area-inset-top) 0 0;
+  -webkit-text-size-adjust: 100%;
+}
+h1 { color: var(--arancio); font-size: 20px; margin: 0; text-shadow: 0 0 8px rgba(255,140,40,.6); }
+.piccolo { font-size: 13px; color: var(--tenue); }
+button.piccolo { font-size: 14px; min-height: 36px; padding: 0 12px; flex: 0 0 auto; color: var(--fondo); }
+button.sec.piccolo { color: var(--arancio); }
+button { font: inherit; font-size: 18px; color: var(--fondo); background: var(--arancio); border: 0; border-radius: 10px; min-height: 52px; padding: 0 14px; flex: 1; }
+button.sec { background: transparent; color: var(--arancio); border: 2px solid var(--arancio); }
+button:disabled { opacity: .4; }
+
+.vista { padding: 12px 16px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; min-height: 100vh; min-height: 100dvh; }
+/* I pulsanti che stanno direttamente nella vista (colonna) non devono allungarsi in altezza */
+.vista > button { flex: 0 0 auto; }
+.testata { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.riga { display: flex; gap: 10px; align-items: center; }
+.riquadro { border: 1px solid var(--tenue); border-radius: 10px; padding: 10px; }
+.errore { border: 1px solid var(--errore); color: var(--errore); border-radius: 10px; padding: 10px; overflow-wrap: anywhere; }
+progress { width: 100%; height: 14px; accent-color: var(--arancio); }
+fieldset { border: 1px solid var(--tenue); border-radius: 10px; margin: 10px 0; }
+label { display: block; padding: 5px 0; }
+
+/* Banner aggiornamento */
+#avviso-aggiornamento { position: sticky; top: 0; z-index: 30; display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  background: var(--arancio); color: var(--fondo); padding: 8px 16px; padding-top: calc(8px + env(safe-area-inset-top)); }
+#avviso-aggiornamento button { background: var(--fondo); color: var(--arancio); }
+
+/* Libreria */
+.libro { display: flex; gap: 12px; background: var(--pannello); border-radius: 12px; padding: 10px; }
+.libro img, .libro .senza-copertina { width: 72px; height: 72px; border-radius: 8px; flex: 0 0 72px; object-fit: cover; background: #22403d; }
+.libro .dati { flex: 1; min-width: 0; }
+.libro .titolo { color: var(--arancio); overflow-wrap: anywhere; }
+.libro .azioni { display: flex; gap: 8px; margin-top: 8px; }
+.libro .azioni button { min-height: 40px; font-size: 15px; }
+.libro .aperto { cursor: pointer; }
+.incompleto { color: var(--errore); }
+
+/* Capitoli */
+#elenco-capitoli { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#elenco-capitoli li { padding: 12px; background: var(--pannello); border-radius: 10px; display: flex; justify-content: space-between; gap: 10px; }
+#elenco-capitoli li.attuale { outline: 2px solid var(--arancio); }
+#elenco-capitoli .durata { color: var(--tenue); white-space: nowrap; }
+#cap-intestazione { display: flex; gap: 12px; align-items: center; }
+#cap-intestazione img { width: 72px; height: 72px; border-radius: 8px; object-fit: cover; }
+
+/* Lettore */
+#vista-lettore { height: 100vh; height: 100dvh; min-height: 0; padding-bottom: 0; gap: 8px; }
+#let-titolo { color: var(--arancio); font-size: 14px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+#testo { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; font: 19px/1.65 Georgia, "Times New Roman", serif; padding: 4px 2px 24px; }
+#testo h2 { font: 700 22px/1.3 ui-monospace, Menlo, Consolas, monospace; color: var(--arancio); margin: 8px 0 16px; }
+#testo h3 { font: 700 18px/1.3 ui-monospace, Menlo, Consolas, monospace; color: var(--tenue); margin: 14px 0; }
+#testo p { margin: 0 0 18px; }
+.frase { border-radius: 4px; padding: 1px 0; -webkit-tap-highlight-color: transparent; }
+.frase.attiva { background: rgba(255,140,40,.28); box-shadow: 0 0 0 3px rgba(255,140,40,.28); }
+#btn-torna-voce { position: fixed; right: 16px; bottom: calc(150px + env(safe-area-inset-bottom)); z-index: 20; min-height: 40px; }
+#comandi { background: var(--fondo); border-top: 1px solid var(--tenue); padding: 8px 0 calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; }
+#let-tempo { font-size: 24px; text-align: center; }
+#let-frase { text-align: center; }
+#comandi .riga { gap: 6px; }
+#comandi .riga button { min-height: 56px; padding: 0 4px; font-size: 16px; white-space: nowrap; }
+#comandi .riga button.piccolo { flex: 0 0 46px; min-height: 56px; padding: 0; font-size: 18px; }
+#btn-play { flex: 2; }
+
+/* Con la barra "In ascolto" visibile lascio spazio in fondo alle viste */
+body.con-minibarra .vista { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+
+/* Barra "In ascolto" */
+#minibarra { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); background: var(--fondo); border-top: 1px solid var(--arancio); z-index: 10; }
+#minibarra button { width: 100%; min-height: 44px; font-size: 15px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Registro */
+#pannello-registro { position: fixed; inset: 0; z-index: 50; background: var(--fondo); overflow-y: auto; padding: calc(12px + env(safe-area-inset-top)) 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+#reg-righe { font-size: 12px; border: 1px solid var(--tenue); border-radius: 10px; padding: 8px; max-height: 40vh; overflow-y: auto; overflow-wrap: anywhere; }
+#reg-righe div { padding: 1px 0; }
+#reg-righe .err { color: var(--errore); }
