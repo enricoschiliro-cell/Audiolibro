@@ -1,7 +1,7 @@
 # Audio e testi generati: restano solo sul PC, non vanno mai online
 output/
 # Ambiente Python e librerie
-.venv/
+.venv*/
 __pycache__/
 *.pyc
 # Pacchetti dei libri da importare nell'app
@@ -9,3 +9,5 @@ __pycache__/
 
 # Modelli di voce scaricati (pesanti)
 modelli/
+# Note di passaggio tra sessioni (percorsi e dettagli personali: non pubblicare)
+handoff/

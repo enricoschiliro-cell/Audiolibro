@@ -1,0 +1,14 @@
+{
+  "nota": "Dati del libro per crea_pacchetto.py. Titolo e autore presi dai metadati del PDF (scansione dell'Internet Archive); la versione italiana e' una traduzione automatica fatta sul PC (uso personale).",
+  "titolo": "The Social Life of Small Urban Spaces",
+  "autore": "William Hollingsworth Whyte",
+  "lingua": "it",
+  "voce_nome": "Filip Traverse",
+  "voce_motore": "XTTS-v2 (Coqui)",
+  "voce_licenza": "CPML: solo uso non commerciale",
+  "traduzione": "Traduzione automatica in italiano con TranslateGemma 12B (locale)",
+  "avviso": "Contiene un libro protetto da diritto d'autore: uso personale, non pubblicare e non condividere.",
+  "copertina_sottotitolo": "Audiolibro in italiano",
+  "copertina_colore": "#22403d",
+  "titoli_capitoli": "whyte-it.json"
+}

@@ -1,0 +1,19 @@
+{
+  "nota": "Titoli italiani dei capitoli di Whyte, scritti a mano (chiave = nome del file del capitolo). Modificali liberamente: vengono letti dalla voce all'inizio di ogni capitolo.",
+  "titoli": {
+    "01-foreword": "Prefazione",
+    "02-preface": "Premessa",
+    "03-introduction": "Introduzione",
+    "04-the-life-of-plazas": "La vita delle piazze",
+    "05-sitting-space": "Lo spazio per sedersi",
+    "06-sun-wind-trees-and-water": "Sole, vento, alberi e acqua",
+    "07-food": "Il cibo",
+    "08-the-street": "La strada",
+    "09-the-undesirables": "Gli indesiderabili",
+    "10-effective-capacity": "La capacità effettiva",
+    "11-indoor-spaces": "Gli spazi al chiuso",
+    "12-concourses-and-megastructures": "Atri e megastrutture",
+    "13-smaller-cities-and-places": "Città e luoghi più piccoli",
+    "14-triangulation": "La triangolazione"
+  }
+}
