@@ -24,8 +24,9 @@ let copertinaCapitoli = null;
 inizializzaAspetto();   // applica subito le scelte salvate (scanline, alone, testo proporzionale, Caramella)
 
 // ---------- Caramella (la mascotte) ----------
-// Libreria: sprite grande con la nuvoletta. Lettore: sprite piccolo; legge mentre suona, dorme dopo un minuto di pausa o a fine timer.
+// Libreria: sprite grande con la nuvoletta, sempre a leggere. Lettore: sprite piccolo; legge mentre suona, dorme dopo un minuto di pausa o a fine timer.
 const caramellaLib = new Caramella($('caramella-libreria'));
+caramellaLib.imposta('legge');   // è un'app di audiolibri: nella libreria Caramella legge sempre (dopo coccole e saltello torna a leggere)
 const caramellaLet = new Caramella($('let-caramella'));
 const FRASI_COCCOLE = ['mmm, che bello!', 'ancora un po’…', 'grazie!'];
 const timerNuvolette = {};
@@ -53,9 +54,6 @@ function caramellaStato(inRiproduzione) {
     parla(idNuvoletta, FRASI_COCCOLE[Math.floor(Math.random() * FRASI_COCCOLE.length)], 2500);
   });
 });
-// Nella libreria, ogni tanto, cambia quello che fa
-const VARIAZIONI_LIBRERIA = ['fermo', 'palpebre', 'si guarda intorno', 'fluttua'];
-setInterval(() => { if (!document.hidden) caramellaLib.imposta(VARIAZIONI_LIBRERIA[Math.floor(Math.random() * VARIAZIONI_LIBRERIA.length)]); }, 9000);
 
 // ---------- Viste ----------
 function mostra(nome) {
