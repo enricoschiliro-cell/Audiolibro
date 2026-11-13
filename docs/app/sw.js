@@ -3,7 +3,7 @@
 //
 // PRIMA DI OGNI PUBBLICAZIONE: se è cambiato un file elencato qui sotto, aumenta VERSIONE.
 // Con un numero nuovo il telefono scarica tutti i file insieme e non può mescolare file vecchi e nuovi.
-const VERSIONE = 4;
+const VERSIONE = 5;
 const CACHE = 'app-v' + VERSIONE;   // le cache dell'app cominciano sempre con "app-" (la pagina di prova usa altri nomi)
 const FILE = [
   './', 'index.html', 'app.css', 'manifest.webmanifest', 'icona-180.png', 'icona-512.png',

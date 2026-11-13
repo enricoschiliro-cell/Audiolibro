@@ -80,101 +80,31 @@ def a_capo(disegno, testo, font, larghezza_max):
     return righe + [corrente]
 
 
-def asterisco(d, cx, cy, raggio, colore, spessore):
-    """Il glifo ✻ del tema (otto raggi con le punte tonde), disegnato a mano: non dipende dai caratteri installati."""
-    import math
-    for k in range(4):
-        a = math.pi / 4 * k
-        dx, dy = raggio * math.cos(a), raggio * math.sin(a)
-        d.line([(cx - dx, cy - dy), (cx + dx, cy + dy)], fill=colore, width=spessore)
-        for segno in (-1, 1):
-            x, y = cx + segno * dx, cy + segno * dy
-            d.ellipse([x - spessore / 2, y - spessore / 2, x + spessore / 2, y + spessore / 2], fill=colore)
-
-
 def crea_copertina(percorso, meta):
-    """Copertina nello stile "Claude Code Retro" (il design system dell'utente: nero caldo, arancione Claude, monospace,
-    scanline, barra di stato) con Caramella che legge. Nessuna immagine del libro: titolo, autore, voce.
-    Lo sprite di Caramella (24x24) e' in pipeline/risorse/caramella-legge.png; se manca, la copertina esce senza."""
-    from PIL import Image, ImageDraw, ImageFilter
+    """Copertina semplice (solo testo, nessuna immagine del libro): titolo, autore, voce. Da sostituire con la grafica definitiva."""
+    from PIL import Image, ImageDraw
     S = 1400
-    M = 90
-    FONDO, SCURO, BORDO = "#141413", "#0f0f0e", "#33312d"
-    TESTO, TENUE, ARANCIO, AMBRA = "#e8e6dc", "#8f8b81", "#d97757", "#d4a27f"
-    mono_b = [r"C:\Windows\Fonts\consolab.ttf", r"C:\Windows\Fonts\cascadiamono.ttf"]
-    mono = [r"C:\Windows\Fonts\consola.ttf", r"C:\Windows\Fonts\cascadiamono.ttf"]
-
-    img = Image.new("RGBA", (S, S), FONDO)
+    crema, oro = "#f2ead8", "#c9a24d"
+    img = Image.new("RGB", (S, S), meta.get("copertina_colore", "#22403d"))
     d = ImageDraw.Draw(img)
+    d.rectangle([60, 60, S - 60, S - 60], outline=oro, width=6)
+    serif = [r"C:\Windows\Fonts\georgiab.ttf", r"C:\Windows\Fonts\timesbd.ttf"]
+    serif_norm = [r"C:\Windows\Fonts\georgia.ttf", r"C:\Windows\Fonts\times.ttf"]
+    sans = [r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\arial.ttf"]
 
-    # In alto: il glifo ✻ e l'etichetta (come un tag del tema: ambra, bordo sottile, fondo scurissimo)
-    asterisco(d, M + 45, M + 45, 42, ARANCIO, 16)
-    f_tag = trova_font(mono, 40)
-    testo_tag = meta.get("copertina_sottotitolo", "Audiolibro").lower()
-    larg_tag = d.textlength(testo_tag, font=f_tag)
-    x0, y0 = M + 130, M + 12
-    d.rounded_rectangle([x0, y0, x0 + larg_tag + 40, y0 + 66], radius=8, fill="#1b1815", outline="#6b5a49", width=3)
-    d.text((x0 + 20, y0 + 33), testo_tag, font=f_tag, fill=AMBRA, anchor="lm")
+    def centrato(testo, y, font, colore):
+        d.text(((S - d.textlength(testo, font=font)) / 2, y), testo, font=font, fill=colore)
 
-    # Titolo: monospace grassetto arancione, con l'alone dei titoli del tema
-    f_titolo = trova_font(mono_b, 118)
-    righe = a_capo(d, meta["titolo"], f_titolo, S - 2 * M)
+    centrato(meta.get("copertina_sottotitolo", "Audiolibro").upper(), 150, trova_font(sans, 46), oro)
+    font_t = trova_font(serif, 130)
     y = 330
-    alone = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    da = ImageDraw.Draw(alone)
-    for riga in righe:
-        da.text((M, y), riga, font=f_titolo, fill=ARANCIO, anchor="ls")
-        y += 140
-    alone = alone.filter(ImageFilter.GaussianBlur(16))
-    alone.putalpha(alone.getchannel("A").point(lambda v: int(v * 0.55)))
-    img = Image.alpha_composite(img, alone)
-    d = ImageDraw.Draw(img)
-    y = 330
-    for riga in righe:
-        d.text((M, y), riga, font=f_titolo, fill=ARANCIO, anchor="ls")
-        y += 140
-    y_fine = y - 140
-    d.line([(M, y_fine + 48), (S - M, y_fine + 48)], fill=BORDO, width=3)
-    d.text((M, y_fine + 120), meta["autore"], font=trova_font(mono, 56), fill=TESTO, anchor="ls")
-
-    # In basso: la barra di stato (✻ arancione, voci separate da una linea sottile)
-    H = 112
-    d.rectangle([0, S - H, S, S], fill=SCURO)
-    d.line([(0, S - H), (S, S - H)], fill=BORDO, width=3)
-    asterisco(d, M + 4, S - H / 2, 15, ARANCIO, 6)
-    f_stato = trova_font(mono, 34)
-    voci_stato = [v for v in ("voce: " + meta.get("voce_nome", ""), meta.get("voce_motore", ""), "uso personale") if v and not v.endswith(": ")]
-    x = M + 40
-    for i, v in enumerate(voci_stato):
-        if i:
-            d.line([(x, S - H + 30), (x, S - 30)], fill=BORDO, width=3)
-            x += 24
-        d.text((x, S - H / 2), v, font=f_stato, fill=TENUE, anchor="lm")
-        x += d.textlength(v, font=f_stato) + 24
-
-    # Caramella che legge, ingrandita x14 senza sfumature, con la sua ombra, e la nuvoletta
-    sprite_png = Path(__file__).resolve().parent / "risorse" / "caramella-legge.png"
-    if sprite_png.is_file():
-        k = 18
-        sprite = Image.open(sprite_png).convert("RGBA").resize((24 * k, 24 * k), Image.NEAREST)
-        sx, sy = S - M - 24 * k + 70, S - H - 24 * k   # il corpo (colonne 4-19) finisce sul margine destro
-        d.rectangle([sx + 6 * k, sy + 23 * k, sx + 18 * k - 1, sy + 24 * k - 1], fill="#4a463f")
-        img.alpha_composite(sprite, (sx, sy))
-        f_nuv = trova_font(mono, 40)
-        t = "buon ascolto…"
-        lw = d.textlength(t, font=f_nuv)
-        bx1 = sx + 20 * k
-        bx0, by0 = bx1 - lw - 44, sy + 6 * k - 96
-        d.rectangle([bx0, by0, bx1, by0 + 78], fill=SCURO, outline=ARANCIO, width=4)
-        d.text((bx0 + 22, by0 + 39), t, font=f_nuv, fill=TESTO, anchor="lm")
-
-    # Scanline del CRT: una riga scura da 1 px ogni 3 px su tutto
-    righe_cr = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    dr = ImageDraw.Draw(righe_cr)
-    for yy in range(2, S, 3):
-        dr.line([(0, yy), (S, yy)], fill=(0, 0, 0, 26), width=1)
-    img = Image.alpha_composite(img, righe_cr)
-    img.convert("RGB").save(percorso, "JPEG", quality=92)
+    for riga in a_capo(d, meta["titolo"], font_t, S - 260):
+        centrato(riga, y, font_t, crema)
+        y += 160
+    d.line([S / 2 - 160, y + 40, S / 2 + 160, y + 40], fill=oro, width=5)
+    centrato(meta["autore"], y + 90, trova_font(serif_norm, 64), crema)
+    centrato("Voce: " + meta.get("voce_nome", ""), S - 250, trova_font(sans, 44), oro)
+    img.save(percorso, "JPEG", quality=90)
 
 
 def main():
