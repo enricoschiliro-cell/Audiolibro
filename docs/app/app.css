@@ -50,6 +50,8 @@ button:active { background: var(--cc-orange-hover); }
 button.sec { background: transparent; color: var(--cc-text); border: 1px solid var(--cc-text-faint); }
 button.sec:active { color: var(--cc-orange); border-color: var(--cc-orange); background: var(--wash-active); }
 button.piccolo { font-size: 14px; min-height: 36px; padding: 0 12px; flex: 0 0 auto; }
+/* ".piccolo" da solo è grigio (testo secondario) e batteva il colore scuro dei pulsanti pieni: "Torna alla voce" e "OK" dei segnalibri erano grigi su arancione */
+button:not(.sec).piccolo { color: var(--on-accent); }
 button:disabled { opacity: .4; }
 
 .vista { padding: 12px 16px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; min-height: 100vh; min-height: 100dvh; }
